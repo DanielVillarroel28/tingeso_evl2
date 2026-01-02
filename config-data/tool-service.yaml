@@ -1,15 +1,24 @@
 server:
-  # Usa el 8093 por defecto si no hay variable de entorno, para que coincida con tu local
+  # Usa el puerto 8093 por defecto si no se especifica otro
   port: ${PORT:${SERVER_PORT:8093}}
 
 eureka:
   client:
-    register-with-eureka: true
     fetch-registry: true
+    register-with-eureka: true
     service-url:
+      # Corregido: "defaultZone" (CamelCase) es obligatorio, "default-zone" no funciona
       defaultZone: http://localhost:8761/eureka
   instance:
-    # CAMBIO: Usamos localhost para que el Gateway en IntelliJ pueda vernos
-    hostname: localhost 
+    # ESTO ES LO QUE TE FALTABA:
+    # 1. Fuerza a usar el hostname 'host.docker.internal' para que Docker/Local lo vean
+    hostname: host.docker.internal
+    
+    # 2. Le dice que NO use la IP numérica, sino el hostname que definimos arriba
+    prefer-ip-address: false
+    
+    # 3. ID limpio para Eureka (ej: tool-service:8093)
     instance-id: ${spring.application.name}:${server.port}
-    prefer-ip-address: false # O true, a veces ayuda en local, pero prueba false con localhost primero
+    
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
