@@ -16,7 +16,9 @@ public class CorsConfig {
         CorsConfiguration cors = new CorsConfiguration();
         cors.setAllowedOrigins(List.of("http://localhost:5173"));
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        cors.setAllowedHeaders(List.of("*"));
+        // Importante para preflight/axios: incluye headers típicos; '*' no siempre aplica bien con credentials.
+        cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));
+        cors.setExposedHeaders(List.of("Authorization", "Location"));
         cors.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -24,4 +26,3 @@ public class CorsConfig {
         return new CorsWebFilter(source);
     }
 }
-

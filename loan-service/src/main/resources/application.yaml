@@ -1,6 +1,3 @@
-server:
-  port: 8094
-
 spring:
   application:
     name: loan-service   # 👈 nombre visible en Eureka
@@ -40,3 +37,7 @@ eureka:
   instance:
     lease-renewal-interval-in-seconds: 10
     lease-expiration-duration-in-seconds: 30
+    instance-id: "${spring.application.name}:${spring.application.instance_id:${random.value}}"
+
+server:
+  port: 0

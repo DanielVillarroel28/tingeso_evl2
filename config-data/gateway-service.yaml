@@ -19,7 +19,7 @@ spring:
       routes:
         # --- RUTA TOOL-SERVICE ---
         - id: tool-service
-          uri: lb://tool-service
+          uri: lb://TOOL-SERVICE
           predicates:
             - Path=/tool-service/**
           filters:                 # <--- "filters" va aquí, a la altura de "predicates"
@@ -27,7 +27,7 @@ spring:
             
         # --- RUTA CLIENT-SERVICE ---
         - id: client-service
-          uri: lb://client-service
+          uri: lb://CLIENT-SERVICE
           predicates:
             - Path=/client-service/** # Sugerencia: Usa prefijos consistentes
           filters:
@@ -35,36 +35,40 @@ spring:
             
         # --- OTROS SERVICIOS ---
         - id: loan-service
-          uri: lb://loan-service
+          uri: lb://LOAN-SERVICE
           predicates:
             - Path=/loan/**
           filters:
             - StripPrefix=1
 
         - id: kardex-service
-          uri: lb://kardex-service
+          uri: lb://KARDEX-SERVICE
           predicates:
             - Path=/kardex/**
           filters:
             - StripPrefix=1
 
         - id: fine-service
-          uri: lb://fine-service
+          uri: lb://FINE-SERVICE
           predicates:
             - Path=/fine/**
           filters:
             - StripPrefix=1
             
-      # --- CORS GLOBAL ---
       globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOrigins: "http://localhost:5173" 
+        corsConfigurations:
+          "[/**]":
+            allowedOrigins:
+              - http://localhost:5173
             allowedMethods:
               - GET
               - POST
               - PUT
+              - PATCH
               - DELETE
               - OPTIONS
-            allowedHeaders: "*"
+            allowedHeaders:
+              - Authorization
+              - Content-Type
+              - Accept
             allowCredentials: true
