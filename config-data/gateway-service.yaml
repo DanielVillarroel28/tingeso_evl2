@@ -6,7 +6,7 @@ eureka:
     fetch-registry: true
     register-with-eureka: true
     service-url:
-      default-zone: http://localhost:8761/eureka
+      defaultZone: http://localhost:8761/eureka
   instance:
     hostname: localhost
 
@@ -17,30 +17,45 @@ spring:
         locator:
           enabled: true
       routes:
+        # --- RUTA TOOL-SERVICE ---
         - id: tool-service
           uri: lb://tool-service
           predicates:
-            # CAMBIO 1: Coincidir con el frontend (/tool-service)
-            - Path=/tool-service/** filters:
-            # CAMBIO 2: Quitar "/tool-service" antes de pasar la petición al backend
-            # Así llega limpia como "/api/v1/tools" al controlador
-            - StripPrefix=1
+            - Path=/tool-service/**
+          filters:                 # <--- "filters" va aquí, a la altura de "predicates"
+            - StripPrefix=1        # <--- Y esto es un elemento de la lista de filtros
+            
+        # --- RUTA CLIENT-SERVICE ---
         - id: client-service
           uri: lb://client-service
           predicates:
-            - Path=/client/**
+            - Path=/client-service/** # Sugerencia: Usa prefijos consistentes
+          filters:
+            - StripPrefix=1
+            
+        # --- OTROS SERVICIOS ---
         - id: loan-service
           uri: lb://loan-service
           predicates:
             - Path=/loan/**
+          filters:
+            - StripPrefix=1
+
         - id: kardex-service
           uri: lb://kardex-service
           predicates:
             - Path=/kardex/**
+          filters:
+            - StripPrefix=1
+
         - id: fine-service
           uri: lb://fine-service
           predicates:
             - Path=/fine/**
+          filters:
+            - StripPrefix=1
+            
+      # --- CORS GLOBAL ---
       globalcors:
         cors-configurations:
           '[/**]':
