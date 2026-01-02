@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: tool-service   # 👈 nombre visible en Eureka
+    name: tool-service
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
@@ -38,5 +38,7 @@ eureka:
     service-url:
       defaultZone: http://localhost:8761/eureka
   instance:
-    lease-renewal-interval-in-seconds: 10
-    lease-expiration-duration-in-seconds: 30
+    # CAMBIO: Usamos localhost para que el Gateway en IntelliJ pueda vernos
+    hostname: localhost
+    instance-id: ${spring.application.name}:${server.port}
+    prefer-ip-address: false # O true, a veces ayuda en local, pero prueba false con localhost primero

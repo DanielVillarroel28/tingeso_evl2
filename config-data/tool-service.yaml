@@ -4,14 +4,12 @@ server:
 
 eureka:
   client:
-    fetch-registry: true
     register-with-eureka: true
+    fetch-registry: true
     service-url:
-      defaultZone: http://localhost:8761/eureka # 👈 Corregido (CamelCase)
+      defaultZone: http://localhost:8761/eureka
   instance:
-    # Agregamos la configuración para que funcione con Docker/Gateway
-    hostname: host.docker.internal
-    prefer-ip-address: false
+    # CAMBIO: Usamos localhost para que el Gateway en IntelliJ pueda vernos
+    hostname: localhost 
     instance-id: ${spring.application.name}:${server.port}
-    lease-renewal-interval-in-seconds: 10
-    lease-expiration-duration-in-seconds: 30
+    prefer-ip-address: false # O true, a veces ayuda en local, pero prueba false con localhost primero

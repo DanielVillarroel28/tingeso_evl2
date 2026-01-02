@@ -17,13 +17,16 @@ public class ToolController {
     @Autowired
     ToolService toolService;
 
-    // CAMBIO 1: Quita el "/"
     @GetMapping
-    public ResponseEntity<List<ToolEntity>> listTools() {
+    public ResponseEntity<List<ToolEntity>> listTools(jakarta.servlet.http.HttpServletRequest request) {
+        // IMPRIME ESTO EN LA CONSOLA
+        System.out.println("--- PETICIÓN RECIBIDA ---");
+        System.out.println("URL Real que llegó: " + request.getRequestURI());
+        System.out.println("-------------------------");
+
         List<ToolEntity> tools = toolService.getTools();
         return ResponseEntity.ok(tools);
     }
-
     @GetMapping("/{id}")
     public ResponseEntity<ToolEntity> getToolById(@PathVariable Long id) {
         ToolEntity tool = toolService.getToolById(id);
