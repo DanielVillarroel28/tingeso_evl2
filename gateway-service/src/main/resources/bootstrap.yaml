@@ -17,3 +17,4 @@ spring:
           issuer-uri: http://localhost:9090/realms/toolrent-realm
           # URL para descargar las claves públicas (opcional pero recomendada en reactive)
           jwk-set-uri: http://localhost:9090/realms/toolrent-realm/protocol/openid-connect/certs
+

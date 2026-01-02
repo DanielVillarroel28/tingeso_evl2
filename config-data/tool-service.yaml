@@ -1,10 +1,17 @@
 server:
-  port: ${PORT:${SERVER_PORT:0}}
+  # Usa el 8093 por defecto si no hay variable de entorno, para que coincida con tu local
+  port: ${PORT:${SERVER_PORT:8093}}
+
 eureka:
   client:
     fetch-registry: true
     register-with-eureka: true
     service-url:
-      default-zone: http://localhost:8761/eureka
+      defaultZone: http://localhost:8761/eureka # 👈 Corregido (CamelCase)
   instance:
-    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    # Agregamos la configuración para que funcione con Docker/Gateway
+    hostname: host.docker.internal
+    prefer-ip-address: false
+    instance-id: ${spring.application.name}:${server.port}
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
