@@ -34,19 +34,19 @@ spring:
         - id: loan-service
           uri: lb://loan-service
           predicates:
-            - Path=/loan/**
+            - Path=/loan-service/**
 
 
         - id: kardex-service
           uri: lb://kardex-service
           predicates:
-            - Path=/kardex/**
+            - Path=/kardex-service/**
 
 
         - id: fine-service
           uri: lb://fine-service
           predicates:
-            - Path=/fine/**
+            - Path=/fine-service/**
             
       globalcors:
         corsConfigurations:
