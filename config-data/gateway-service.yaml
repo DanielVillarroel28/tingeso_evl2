@@ -21,39 +21,32 @@ spring:
         - id: tool-service
           uri: lb://tool-service
           predicates:
-            - Path=/tool-service/**
-          filters:                 # <--- "filters" va aquí, a la altura de "predicates"
-            - StripPrefix=1        # <--- Y esto es un elemento de la lista de filtros
+            - Path=/tool-service/**      # <--- Y esto es un elemento de la lista de filtros
             
         # --- RUTA CLIENT-SERVICE ---
         - id: client-service
           uri: lb://client-service
           predicates:
             - Path=/client-service/** # Sugerencia: Usa prefijos consistentes
-          filters:
-            - StripPrefix=1
+
             
         # --- OTROS SERVICIOS ---
         - id: loan-service
           uri: lb://loan-service
           predicates:
             - Path=/loan/**
-          filters:
-            - StripPrefix=1
+
 
         - id: kardex-service
           uri: lb://kardex-service
           predicates:
             - Path=/kardex/**
-          filters:
-            - StripPrefix=1
+
 
         - id: fine-service
           uri: lb://fine-service
           predicates:
             - Path=/fine/**
-          filters:
-            - StripPrefix=1
             
       globalcors:
         corsConfigurations:
