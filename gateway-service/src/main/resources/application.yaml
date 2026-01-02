@@ -9,9 +9,33 @@ spring:
   cloud:
     config:
       fail-fast: false
+    gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - Authorization
+              - Content-Type
+              - X-Requested-With
+              - Accept
+              - Origin
+            exposedHeaders:
+              - Authorization
+              - Location
+            allowCredentials: true
 
 logging:
   level:
     org.springframework.web.cors: DEBUG
+    org.springframework.cloud.gateway: DEBUG
     org.springframework.security: INFO
-

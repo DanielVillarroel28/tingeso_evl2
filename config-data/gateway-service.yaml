@@ -19,7 +19,7 @@ spring:
       routes:
         # --- RUTA TOOL-SERVICE ---
         - id: tool-service
-          uri: lb://TOOL-SERVICE
+          uri: lb://tool-service
           predicates:
             - Path=/tool-service/**
           filters:                 # <--- "filters" va aquí, a la altura de "predicates"
@@ -27,7 +27,7 @@ spring:
             
         # --- RUTA CLIENT-SERVICE ---
         - id: client-service
-          uri: lb://CLIENT-SERVICE
+          uri: lb://client-service
           predicates:
             - Path=/client-service/** # Sugerencia: Usa prefijos consistentes
           filters:
@@ -35,21 +35,21 @@ spring:
             
         # --- OTROS SERVICIOS ---
         - id: loan-service
-          uri: lb://LOAN-SERVICE
+          uri: lb://loan-service
           predicates:
             - Path=/loan/**
           filters:
             - StripPrefix=1
 
         - id: kardex-service
-          uri: lb://KARDEX-SERVICE
+          uri: lb://kardex-service
           predicates:
             - Path=/kardex/**
           filters:
             - StripPrefix=1
 
         - id: fine-service
-          uri: lb://FINE-SERVICE
+          uri: lb://fine-service
           predicates:
             - Path=/fine/**
           filters:
