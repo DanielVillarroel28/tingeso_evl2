@@ -5,3 +5,15 @@ spring:
     config:
       enabled: true
       uri: http://localhost:8081
+
+  main:
+    web-application-type: reactive
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # URL para validar la firma del token
+          issuer-uri: http://localhost:9090/realms/toolrent-realm
+          # URL para descargar las claves públicas (opcional pero recomendada en reactive)
+          jwk-set-uri: http://localhost:9090/realms/toolrent-realm/protocol/openid-connect/certs

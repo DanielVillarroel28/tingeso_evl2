@@ -20,7 +20,11 @@ spring:
         - id: tool-service
           uri: lb://tool-service
           predicates:
-            - Path=/tool/**
+            # CAMBIO 1: Coincidir con el frontend (/tool-service)
+            - Path=/tool-service/** filters:
+            # CAMBIO 2: Quitar "/tool-service" antes de pasar la petición al backend
+            # Así llega limpia como "/api/v1/tools" al controlador
+            - StripPrefix=1
         - id: client-service
           uri: lb://client-service
           predicates:
@@ -37,3 +41,15 @@ spring:
           uri: lb://fine-service
           predicates:
             - Path=/fine/**
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:5173" 
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true

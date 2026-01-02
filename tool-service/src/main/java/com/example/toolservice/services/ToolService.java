@@ -56,8 +56,6 @@ public class ToolService {
             dto.setQuantityAffected(quantity);
             dto.setUserResponsible(user);
 
-            // IMPORTANTE: Aquí se usa el nombre del servicio en Kubernetes/Eureka
-            // Suponiendo que en el application.properties del M5 pusiste: spring.application.name=kardex-service
             String url = "http://kardex-service/api/kardex/movement";
 
             restTemplate.postForObject(url, dto, Void.class);

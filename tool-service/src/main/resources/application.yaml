@@ -1,0 +1,42 @@
+server:
+  port: 8093
+
+spring:
+  application:
+    name: tool-service   # 👈 nombre visible en Eureka
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: 1234
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: toolrent-backend
+            client-secret: 8IYpgVkH76TRaC4E8hEmnGF4r7wL3XgL
+            scope: openid,profile,email
+            authorization-grant-type: authorization_code
+            redirect-uri: http://localhost/login/oauth2/code/keycloak
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:9090/realms/toolrent-realm
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9090/realms/toolrent-realm
+
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30

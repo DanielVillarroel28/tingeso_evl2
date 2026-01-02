@@ -10,19 +10,19 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/tools")
-@CrossOrigin("*")
+@RequestMapping("/api/v1/tools") // Ruta base
+// @CrossOrigin("*") <--- ELIMINA ESTO. El Gateway ya maneja el CORS.
 public class ToolController {
+
     @Autowired
     ToolService toolService;
 
-
-    @GetMapping("/")
+    // CAMBIO 1: Quita el "/"
+    @GetMapping
     public ResponseEntity<List<ToolEntity>> listTools() {
         List<ToolEntity> tools = toolService.getTools();
         return ResponseEntity.ok(tools);
     }
-
 
     @GetMapping("/{id}")
     public ResponseEntity<ToolEntity> getToolById(@PathVariable Long id) {
@@ -30,8 +30,9 @@ public class ToolController {
         return ResponseEntity.ok(tool);
     }
 
+    // CAMBIO 2: Quita el "/"
     @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/")
+    @PostMapping
     public ResponseEntity<ToolEntity> saveTool(@RequestBody ToolEntity tool) {
         ToolEntity toolNew = toolService.saveTool(tool);
         return ResponseEntity.ok(toolNew);
@@ -48,6 +49,4 @@ public class ToolController {
         toolService.logicalDeleteTool(id);
         return ResponseEntity.noContent().build();
     }
-
-
 }

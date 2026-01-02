@@ -1,0 +1,37 @@
+server:
+  port: 8095  # Puerto aleatorio según requerimiento PDF
+
+spring:
+  application:
+    name: user-service
+
+  # Base de datos propia de M7
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: 1234
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Seguridad: Este servicio valida tokens (Resource Server)
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9090/realms/toolrent-realm
+          jwk-set-uri: http://localhost:9090/realms/toolrent-realm/protocol/openid-connect/certs
+
+# Configuración personalizada para el cliente Admin de Keycloak
+# (Usada en KeycloakConfig.java y UserService.java)
+keycloak:
+  server-url: http://localhost:9090
+  realm: toolrent-realm
+  client-id: toolrent-backend
+  client-secret: 8IYpgVkH76TRaC4E8hEmnGF4r7wL3XgL
