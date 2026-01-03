@@ -21,7 +21,7 @@ public class LoanController {
     @Autowired
     private LoanService loanService;
 
-    @GetMapping("/")
+    @GetMapping()
     public ResponseEntity<List<LoanWithFineInfoDTO>> listLoans(jakarta.servlet.http.HttpServletRequest request) {
         System.out.println("--- PETICIÓN RECIBIDA ---");
         System.out.println("URL Real que llegó: " + request.getRequestURI());
@@ -30,11 +30,14 @@ public class LoanController {
         return ResponseEntity.ok(loans);
     }
 
-    @PutMapping("/")
-    public ResponseEntity<LoanEntity> updateLoan(@RequestBody LoanEntity loan) {
+    // `src/main/java/com/example/loanservice/controllers/LoanController.java`
+    @PutMapping("/{id}")
+    public ResponseEntity<LoanEntity> updateLoan(@PathVariable Long id, @RequestBody LoanEntity loan) {
+        loan.setId(id);
         LoanEntity loanUpdated = loanService.updateLoan(loan);
         return ResponseEntity.ok(loanUpdated);
     }
+
 
     @PostMapping("/{id}/return")
     public ResponseEntity<LoanWithFineInfoDTO> processReturn(
@@ -50,17 +53,20 @@ public class LoanController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/")
+    @PostMapping
     public ResponseEntity<LoanEntity> createLoan(
             @Valid @RequestBody LoanDTO loanRequest,
-            JwtAuthenticationToken principal) {
+            @org.springframework.lang.Nullable JwtAuthenticationToken principal) {
         LoanEntity newLoan = loanService.createLoan(loanRequest, principal);
         return new ResponseEntity<>(newLoan, HttpStatus.CREATED);
     }
 
     @GetMapping("/my-loans")
-    public ResponseEntity<List<LoanWithFineInfoDTO>> getMyLoans(JwtAuthenticationToken principal) {
-        // name() suele corresponder al 'sub' del JWT
+    public ResponseEntity<List<LoanWithFineInfoDTO>> getMyLoans(
+            @org.springframework.lang.Nullable JwtAuthenticationToken principal) {
+        if (principal == null) {
+            return ResponseEntity.ok(loanService.getLoansWithFineInfo());
+        }
         String keycloakId = principal.getName();
         List<LoanWithFineInfoDTO> loans = loanService.getLoansForUser(keycloakId);
         return ResponseEntity.ok(loans);

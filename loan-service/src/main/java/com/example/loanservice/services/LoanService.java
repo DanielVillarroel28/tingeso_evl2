@@ -1,18 +1,23 @@
 package com.example.loanservice.services;
 
-
+import com.example.loanservice.entities.LoanEntity;
 import com.example.loanservice.model.LoanDTO;
 import com.example.loanservice.model.LoanWithFineInfoDTO;
 import com.example.loanservice.model.ReturnRequestDTO;
-import com.example.loanservice.entities.LoanEntity;
 import com.example.loanservice.repositories.LoanRepository;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -28,16 +33,20 @@ public class LoanService {
     @Autowired
     private RestTemplate restTemplate;
 
-    // Nombres de los servicios en Kubernetes (ClusterIP)
-    private final String TOOL_SERVICE_URL = "http://tool-service/api/tools";
-    private final String CLIENT_SERVICE_URL = "http://client-service/api/clients";
-    private final String KARDEX_SERVICE_URL = "http://kardex-service/api/kardex/movement";
-    private final String FINE_SERVICE_URL = "http://fine-service/api/fines"; // Nuevo Microservicio de Multas
+    @Value("${services.tool.base-url}")
+    private String toolServiceBaseUrl;
+
+    @Value("${services.client.base-url}")
+    private String clientServiceBaseUrl;
+
+    @Value("${services.kardex.base-url}")
+    private String kardexServiceBaseUrl;
+
+    @Value("${services.fine.base-url}")
+    private String fineServiceBaseUrl;
 
     // --- LISTAR PRÉSTAMOS ---
     public List<LoanWithFineInfoDTO> getLoansWithFineInfo() {
-        // Nota: Esto puede ser lento (N+1 queries HTTP). En producción se usaría un patrón BFF o agregación.
-        // Para la evaluación, RestTemplate en bucle es aceptable si el volumen de datos es bajo.
         return loanRepository.findAll().stream()
                 .map(this::buildLoanWithFineInfoDTO)
                 .collect(Collectors.toList());
@@ -53,25 +62,27 @@ public class LoanService {
     @Transactional
     public LoanEntity createLoan(LoanDTO loanRequest, JwtAuthenticationToken principal) {
 
-        // 1. Obtener Cliente (HTTP a M3)
+        // 1) Obtener Cliente
         ClientDTO clientDTO;
         if (loanRequest.getClientId() != null) {
-            clientDTO = getClientById(loanRequest.getClientId());
+            clientDTO = getClientById(loanRequest.getClientId(), principal);
         } else {
-            String keycloakId = principal.getName();
-            clientDTO = getClientByKeycloakId(keycloakId);
+            if (principal == null) {
+                throw new IllegalArgumentException("Falta clientId o token JWT: envía clientId en el body o Authorization: Bearer <token>.");
+            }
+            clientDTO = getCurrentClient(principal);
         }
 
-        // 2. Obtener Herramienta (HTTP a M1)
-        ToolDTO toolDTO = getToolById(loanRequest.getToolId());
+        // 2) Obtener Herramienta
+        ToolDTO toolDTO = getToolById(loanRequest.getToolId(), principal);
 
-        // 3. Validaciones (Incluye llamada HTTP a M4-FineService)
-        validateLoanRequest(clientDTO, toolDTO, loanRequest.getDueDate());
+        // 3) Validaciones
+        validateLoanRequest(clientDTO, toolDTO, loanRequest.getDueDate(), principal);
 
-        // 4. Actualizar Herramienta (HTTP a M1)
-        updateToolStatus(toolDTO.getId(), "Prestada");
+        // 4) Actualizar Herramienta
+        updateToolStatus(toolDTO.getId(), "Prestada", principal);
 
-        // 5. Guardar Préstamo Local (M2)
+        // 5) Guardar Préstamo
         LoanEntity newLoan = new LoanEntity();
         newLoan.setClientId(clientDTO.getId());
         newLoan.setClientName(clientDTO.getName());
@@ -84,8 +95,8 @@ public class LoanService {
 
         LoanEntity savedLoan = loanRepository.save(newLoan);
 
-        // 6. Kardex (HTTP a M5)
-        sendToKardex(savedLoan.getToolId(), savedLoan.getToolName(), "Préstamo", -1, savedLoan.getClientName());
+        // 6) Kardex
+        sendToKardex(savedLoan.getToolId(), savedLoan.getToolName(), "Préstamo", -1, savedLoan.getClientName(), principal);
 
         return savedLoan;
     }
@@ -103,38 +114,31 @@ public class LoanService {
         loan.setReturnDate(LocalDate.now());
         loan.setStatus("Devuelto");
 
-        String damageType = returnRequest.getStatus(); // "Irreparable", "Dañada", "Bueno"
+        String damageType = returnRequest.getStatus();
         String finalToolStatus = "Disponible";
-        String currentUser = "EMPLEADO"; // Obtener de token si es posible
+        String currentUser = "EMPLEADO";
 
-        // Lógica de Daños y Kardex
         if ("Irreparable".equals(damageType)) {
             finalToolStatus = "Dada de baja";
-            sendToKardex(loan.getToolId(), loan.getToolName(), "Devolución", 1, currentUser);
-            sendToKardex(loan.getToolId(), loan.getToolName(), "Baja", -1, currentUser);
-
-            // Crear Multa por Daño Total (HTTP a FineService)
-            createFine(loan.getId(), loan.getClientId(), "Daño Irreparable", 0); // El monto 0 indica que el servicio calcule según valor repo
+            sendToKardex(loan.getToolId(), loan.getToolName(), "Devolución", 1, currentUser, null);
+            sendToKardex(loan.getToolId(), loan.getToolName(), "Baja", -1, currentUser, null);
+            createFine(loan.getId(), loan.getClientId(), "Daño Irreparable", 0, null);
 
         } else if ("Dañada".equals(damageType)) {
             finalToolStatus = "En reparación";
-            sendToKardex(loan.getToolId(), loan.getToolName(), "Devolución", 1, currentUser);
-            sendToKardex(loan.getToolId(), loan.getToolName(), "Reparación", 0, currentUser);
-
-            // Crear Multa por Daño Reparable (HTTP a FineService)
-            createFine(loan.getId(), loan.getClientId(), "Daño Reparable", 0);
+            sendToKardex(loan.getToolId(), loan.getToolName(), "Devolución", 1, currentUser, null);
+            sendToKardex(loan.getToolId(), loan.getToolName(), "Reparación", 0, currentUser, null);
+            createFine(loan.getId(), loan.getClientId(), "Daño Reparable", 0, null);
 
         } else {
-            sendToKardex(loan.getToolId(), loan.getToolName(), "Devolución", 1, currentUser);
+            sendToKardex(loan.getToolId(), loan.getToolName(), "Devolución", 1, currentUser, null);
         }
 
-        // Crear Multa por Atraso (Si corresponde)
         if (loan.getReturnDate().isAfter(loan.getDueDate())) {
-            createFine(loan.getId(), loan.getClientId(), "Atraso", 0);
+            createFine(loan.getId(), loan.getClientId(), "Atraso", 0, null);
         }
 
-        // Actualizar Herramienta en M1
-        updateToolStatus(loan.getToolId(), finalToolStatus);
+        updateToolStatus(loan.getToolId(), finalToolStatus, null);
 
         LoanEntity savedLoan = loanRepository.save(loan);
         return buildLoanWithFineInfoDTO(savedLoan);
@@ -156,51 +160,57 @@ public class LoanService {
     // MÉTODOS PRIVADOS (COMUNICACIÓN ENTRE MICROSERVICIOS)
     // ==========================================
 
-    // Llamada al Microservicio de Multas para crear una multa
-    private void createFine(Long loanId, Long clientId, String type, int amountOverride) {
+    private void createFine(Long loanId, Long clientId, String type, int amountOverride, JwtAuthenticationToken principal) {
         try {
             FineRequestDTO fineReq = new FineRequestDTO();
             fineReq.setLoanId(loanId);
             fineReq.setClientId(clientId);
-            fineReq.setType(type); // "Atraso", "Daño Reparable", "Daño Irreparable"
-            fineReq.setAmount(amountOverride); // Si es 0, el servicio Fine calcula.
+            fineReq.setType(type);
+            fineReq.setAmount(amountOverride);
 
-            restTemplate.postForObject(FINE_SERVICE_URL, fineReq, Void.class);
+            HttpEntity<FineRequestDTO> entity = new HttpEntity<>(fineReq, authHeaders(principal));
+            restTemplate.exchange(
+                    fineServiceBaseUrl + "/api/v1/fines",
+                    HttpMethod.POST,
+                    entity,
+                    Void.class
+            );
         } catch (Exception e) {
             System.err.println("Error creando multa: " + e.getMessage());
-            // Dependiendo de la regla de negocio, podrías lanzar excepción o solo loguear
         }
     }
 
-    // Llamada al Microservicio de Multas para ver si tiene deudas
-    private boolean hasPendingFines(Long clientId) {
+    private boolean hasPendingFines(Long clientId, JwtAuthenticationToken principal) {
         try {
-            // Endpoint sugerido en FineService: GET /api/fines/check-pending/{clientId}
-            Boolean result = restTemplate.getForObject(FINE_SERVICE_URL + "/check-pending/" + clientId, Boolean.class);
+            HttpEntity<Void> entity = new HttpEntity<>(authHeaders(principal));
+            ResponseEntity<Boolean> response = restTemplate.exchange(
+                    fineServiceBaseUrl + "/api/v1/fines/check-pending/" + clientId,
+                    HttpMethod.GET,
+                    entity,
+                    Boolean.class
+            );
+            Boolean result = response.getBody();
             return result != null && result;
         } catch (Exception e) {
             System.err.println("Error verificando multas: " + e.getMessage());
-            return false; // Ante duda, asumimos false o true según riesgo
+            return false;
         }
     }
 
-    // Llamada al Microservicio de Multas para obtener info de una multa específica para el DTO
     private FineDTO getFineByLoanId(Long loanId) {
         try {
-            // Endpoint sugerido: GET /api/fines/loan/{loanId}
-            return restTemplate.getForObject(FINE_SERVICE_URL + "/loan/" + loanId, FineDTO.class);
+            return restTemplate.getForObject(fineServiceBaseUrl + "/api/v1/fines/loan/" + loanId, FineDTO.class);
         } catch (HttpClientErrorException.NotFound e) {
-            return null; // No tiene multa
+            return null;
         } catch (Exception e) {
             return null;
         }
     }
 
-    private void validateLoanRequest(ClientDTO client, ToolDTO tool, LocalDate dueDate) {
+    private void validateLoanRequest(ClientDTO client, ToolDTO tool, LocalDate dueDate, JwtAuthenticationToken principal) {
         if (dueDate.isBefore(LocalDate.now())) throw new IllegalArgumentException("Fecha inválida.");
 
-        // Validación remota de Multas
-        if (hasPendingFines(client.getId())) {
+        if (hasPendingFines(client.getId(), principal)) {
             throw new RuntimeException("El cliente tiene multas impagas.");
         }
 
@@ -221,7 +231,6 @@ public class LoanService {
         }
     }
 
-    // Construcción del DTO combinando datos locales y remotos (Multas)
     private LoanWithFineInfoDTO buildLoanWithFineInfoDTO(LoanEntity loan) {
         LoanWithFineInfoDTO dto = new LoanWithFineInfoDTO();
         dto.setId(loan.getId());
@@ -232,7 +241,6 @@ public class LoanService {
         dto.setReturnDate(loan.getReturnDate());
         dto.setStatus(loan.getStatus());
 
-        // Consultar al microservicio de multas si existe multa para este préstamo
         FineDTO fine = getFineByLoanId(loan.getId());
         if (fine != null) {
             dto.setFineId(fine.getId());
@@ -242,19 +250,56 @@ public class LoanService {
         return dto;
     }
 
-    private ClientDTO getClientById(Long id) {
-        return restTemplate.getForObject(CLIENT_SERVICE_URL + "/" + id, ClientDTO.class);
+    // --- CLIENT ---
+
+    private ClientDTO getClientById(Long id, JwtAuthenticationToken principal) {
+        HttpEntity<Void> entity = new HttpEntity<>(authHeaders(principal));
+        ResponseEntity<ClientDTO> response = restTemplate.exchange(
+                clientServiceBaseUrl + "/api/v1/clients/" + id,
+                HttpMethod.GET,
+                entity,
+                ClientDTO.class
+        );
+        return response.getBody();
     }
-    private ClientDTO getClientByKeycloakId(String id) {
-        return restTemplate.getForObject(CLIENT_SERVICE_URL + "/keycloak/" + id, ClientDTO.class);
+
+    private ClientDTO getCurrentClient(JwtAuthenticationToken principal) {
+        HttpEntity<Void> entity = new HttpEntity<>(authHeaders(principal));
+        ResponseEntity<ClientDTO> response = restTemplate.exchange(
+                clientServiceBaseUrl + "/api/v1/clients/me",
+                HttpMethod.GET,
+                entity,
+                ClientDTO.class
+        );
+        return response.getBody();
     }
-    private ToolDTO getToolById(Long id) {
-        return restTemplate.getForObject(TOOL_SERVICE_URL + "/" + id, ToolDTO.class);
+
+    // --- TOOL ---
+
+    private ToolDTO getToolById(Long id, JwtAuthenticationToken principal) {
+        HttpEntity<Void> entity = new HttpEntity<>(authHeaders(principal));
+        ResponseEntity<ToolDTO> response = restTemplate.exchange(
+                toolServiceBaseUrl + "/api/v1/tools/" + id,
+                HttpMethod.GET,
+                entity,
+                ToolDTO.class
+        );
+        return response.getBody();
     }
-    private void updateToolStatus(Long toolId, String newStatus) {
-        restTemplate.put(TOOL_SERVICE_URL + "/" + toolId + "/status?newStatus=" + newStatus, null);
+
+    private void updateToolStatus(Long toolId, String newStatus, JwtAuthenticationToken principal) {
+        String url = UriComponentsBuilder
+                .fromHttpUrl(toolServiceBaseUrl + "/api/v1/tools/" + toolId + "/status")
+                .queryParam("newStatus", newStatus)
+                .toUriString();
+
+        HttpEntity<Void> entity = new HttpEntity<>(authHeaders(principal));
+        restTemplate.exchange(url, HttpMethod.PUT, entity, Void.class);
     }
-    private void sendToKardex(Long toolId, String toolName, String type, int qty, String user) {
+
+    // --- KARDEX ---
+
+    private void sendToKardex(Long toolId, String toolName, String type, int qty, String user, JwtAuthenticationToken principal) {
         try {
             KardexDTO dto = new KardexDTO();
             dto.setToolId(toolId);
@@ -263,16 +308,66 @@ public class LoanService {
             dto.setQuantityAffected(qty);
             dto.setUserResponsible(user);
             dto.setMovementDate(LocalDateTime.now());
-            restTemplate.postForObject(KARDEX_SERVICE_URL, dto, Void.class);
+
+            HttpEntity<KardexDTO> entity = new HttpEntity<>(dto, authHeaders(principal));
+            restTemplate.exchange(
+                    kardexServiceBaseUrl + "/api/kardex/movement",
+                    HttpMethod.POST,
+                    entity,
+                    Void.class
+            );
         } catch (Exception e) {
             System.err.println("Kardex error: " + e.getMessage());
         }
     }
 
+    private HttpHeaders authHeaders(JwtAuthenticationToken principal) {
+        HttpHeaders headers = new HttpHeaders();
+        if (principal != null && principal.getToken() != null) {
+            headers.setBearerAuth(principal.getToken().getTokenValue());
+        }
+        return headers;
+    }
+
     // --- DTOs INTERNOS ---
-    @Data public static class ClientDTO { private Long id; private String name; private String status; private String keycloakId; }
-    @Data public static class ToolDTO { private Long id; private String name; private String status; private int availableStock; }
-    @Data public static class KardexDTO { private Long toolId; private String toolName; private String movementType; private LocalDateTime movementDate; private int quantityAffected; private String userResponsible; }
-    @Data public static class FineRequestDTO { private Long loanId; private Long clientId; private String type; private int amount; }
-    @Data public static class FineDTO { private Long id; private int amount; private String status; }
+    @Data
+    public static class ClientDTO {
+        private Long id;
+        private String name;
+        private String status;
+        private String keycloakId;
+    }
+
+    @Data
+    public static class ToolDTO {
+        private Long id;
+        private String name;
+        private String status;
+        private int availableStock;
+    }
+
+    @Data
+    public static class KardexDTO {
+        private Long toolId;
+        private String toolName;
+        private String movementType;
+        private LocalDateTime movementDate;
+        private int quantityAffected;
+        private String userResponsible;
+    }
+
+    @Data
+    public static class FineRequestDTO {
+        private Long loanId;
+        private Long clientId;
+        private String type;
+        private int amount;
+    }
+
+    @Data
+    public static class FineDTO {
+        private Long id;
+        private int amount;
+        private String status;
+    }
 }

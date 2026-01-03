@@ -42,3 +42,14 @@ eureka:
 
 server:
   port: 8098
+
+# URLs base de microservicios (LOCAL). En Docker/K8s puedes cambiarlas a http://client-service, etc.
+services:
+  tool:
+    base-url: http://localhost:8080/TOOL-SERVICE
+  client:
+    base-url: http://localhost:8080/CLIENT-SERVICE
+  kardex:
+    base-url: http://localhost:8080/KARDEX-SERVICE
+  fine:
+    base-url: http://localhost:8080/FINE-SERVICE
