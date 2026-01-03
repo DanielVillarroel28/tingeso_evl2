@@ -22,7 +22,6 @@ public class ClientService {
     }
 
     public ClientEntity saveEmployee(ClientEntity employee){
-
         return clientRepository.save(employee);
     }
 
@@ -32,12 +31,10 @@ public class ClientService {
     }
 
     public ClientEntity getClientByRut(String rut){
-
         return clientRepository.findByRut(rut);
     }
 
     public ClientEntity updateClient(Long id, ClientEntity clientDetails) {
-        //buscar el cliente existente por su id
         ClientEntity client = clientRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente no encontrado con id: " + id));
 
@@ -50,6 +47,18 @@ public class ClientService {
         return clientRepository.save(client);
     }
 
+    // --- NUEVO MÉTODO AGREGADO ---
+    // Este método es llamado por ClientController cuando FineService pide bloquear/desbloquear
+    public void updateClientStatus(Long id, String newStatus) {
+        ClientEntity client = clientRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente no encontrado con id: " + id));
+
+        client.setStatus(newStatus);
+        clientRepository.save(client);
+        System.out.println("Estado del cliente " + id + " actualizado a: " + newStatus);
+    }
+    // -----------------------------
+
     public void deleteClient(Long id) {
         if (!clientRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente no encontrado con id: " + id);
@@ -59,15 +68,12 @@ public class ClientService {
 
     @Transactional
     public ClientEntity findOrCreateClient(JwtAuthenticationToken principal) {
-        //  id unico del usuario desde el token
         String keycloakId = principal.getName();
-        // crear cliente si no existe
         return clientRepository.findByKeycloakId(keycloakId).orElseGet(() -> {
             System.out.println("Cliente con Keycloak ID '" + keycloakId + "' no encontrado. Creando nuevo cliente...");
 
             Map<String, Object> claims = principal.getToken().getClaims();
 
-            // obtener datos del token
             String name = (String) claims.get("name");
             String email = (String) claims.get("email");
             String rut = (String) claims.get("RUT");
@@ -81,19 +87,16 @@ public class ClientService {
             newClient.setPhone(phone);
             newClient.setStatus("Activo");
 
-            System.out.println("Nuevo cliente creado -> Nombre: " + name + ", RUT: " + rut);
-
             return clientRepository.save(newClient);
         });
     }
 
     public ClientEntity getCurrentClient(JwtAuthenticationToken principal) {
-        String keycloakId = principal.getName(); // 'sub' del token
+        String keycloakId = principal.getName();
         return clientRepository.findByKeycloakId(keycloakId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No se encontró un perfil de cliente para el usuario actual."));
     }
 
-    //Actualiza la información del cliente actualmente autenticado.
     public ClientEntity updateCurrentClient(JwtAuthenticationToken principal, ClientEntity clientDetails) {
         ClientEntity clientToUpdate = getCurrentClient(principal);
 

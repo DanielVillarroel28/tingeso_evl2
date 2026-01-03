@@ -68,7 +68,7 @@ public class LoanService {
             clientDTO = getClientById(loanRequest.getClientId(), principal);
         } else {
             if (principal == null) {
-                throw new IllegalArgumentException("Falta clientId o token JWT: envía clientId en el body o Authorization: Bearer <token>.");
+                throw new IllegalArgumentException("Falta clientId o token JWT.");
             }
             clientDTO = getCurrentClient(principal);
         }
@@ -116,26 +116,46 @@ public class LoanService {
 
         String damageType = returnRequest.getStatus();
         String finalToolStatus = "Disponible";
-        String currentUser = "EMPLEADO";
+        String currentUser = "EMPLEADO"; // Idealmente obtener del token
 
         if ("Irreparable".equals(damageType)) {
             finalToolStatus = "Dada de baja";
+
+            // --- CORRECCIÓN CLAVE: CONSULTAR PRECIO DE REPOSICIÓN ---
+            // Llamamos a ToolService para saber cuánto vale la herramienta hoy
+            int replacementValue = 0;
+            try {
+                // Pasamos null en token porque este método controller a veces no trae principal,
+                // asegurate que el endpoint GET /tools/{id} sea accesible
+                ToolDTO toolInfo = getToolById(loan.getToolId(), null);
+                if (toolInfo != null) {
+                    replacementValue = toolInfo.getReplacementValue();
+                }
+            } catch (Exception e) {
+                System.err.println("No se pudo obtener el valor de reposición: " + e.getMessage());
+                // Fallback opcional: replacementValue = 50000;
+            }
+
             sendToKardex(loan.getToolId(), loan.getToolName(), "Devolución", 1, currentUser, null);
             sendToKardex(loan.getToolId(), loan.getToolName(), "Baja", -1, currentUser, null);
-            createFine(loan.getId(), loan.getClientId(), "Daño Irreparable", 0, null);
+
+            // Enviamos el valor real de la herramienta como multa
+            createFine(loan, "Daño Irreparable", replacementValue, null);
 
         } else if ("Dañada".equals(damageType)) {
             finalToolStatus = "En reparación";
             sendToKardex(loan.getToolId(), loan.getToolName(), "Devolución", 1, currentUser, null);
             sendToKardex(loan.getToolId(), loan.getToolName(), "Reparación", 0, currentUser, null);
-            createFine(loan.getId(), loan.getClientId(), "Daño Reparable", 0, null);
+
+            // Daño reparable: enviamos 0 para que FineService use la tarifa configurada
+            createFine(loan, "Daño Reparable", 0, null);
 
         } else {
             sendToKardex(loan.getToolId(), loan.getToolName(), "Devolución", 1, currentUser, null);
         }
 
         if (loan.getReturnDate().isAfter(loan.getDueDate())) {
-            createFine(loan.getId(), loan.getClientId(), "Atraso", 0, null);
+            createFine(loan, "Atraso", 0, null);
         }
 
         updateToolStatus(loan.getToolId(), finalToolStatus, null);
@@ -160,13 +180,25 @@ public class LoanService {
     // MÉTODOS PRIVADOS (COMUNICACIÓN ENTRE MICROSERVICIOS)
     // ==========================================
 
-    private void createFine(Long loanId, Long clientId, String type, int amountOverride, JwtAuthenticationToken principal) {
+    private void createFine(LoanEntity loan, String type, int amountOverride, JwtAuthenticationToken principal) {
         try {
             FineRequestDTO fineReq = new FineRequestDTO();
-            fineReq.setLoanId(loanId);
-            fineReq.setClientId(clientId);
+            fineReq.setLoanId(loan.getId());
+            fineReq.setClientId(loan.getClientId());
+
+            // Enviamos nombres para que FineService pueda guardarlos
+            fineReq.setClientName(loan.getClientName());
+            fineReq.setClientKeycloakId(loan.getClientKeycloakId());
+            fineReq.setToolName(loan.getToolName());
+
             fineReq.setType(type);
             fineReq.setAmount(amountOverride);
+
+            // Calcular días de atraso si aplica
+            if (loan.getReturnDate() != null && loan.getDueDate() != null) {
+                long diff = java.time.temporal.ChronoUnit.DAYS.between(loan.getDueDate(), loan.getReturnDate());
+                if (diff > 0) fineReq.setOverdueDays(diff);
+            }
 
             HttpEntity<FineRequestDTO> entity = new HttpEntity<>(fineReq, authHeaders(principal));
             restTemplate.exchange(
@@ -251,7 +283,6 @@ public class LoanService {
     }
 
     // --- CLIENT ---
-
     private ClientDTO getClientById(Long id, JwtAuthenticationToken principal) {
         HttpEntity<Void> entity = new HttpEntity<>(authHeaders(principal));
         ResponseEntity<ClientDTO> response = restTemplate.exchange(
@@ -275,7 +306,6 @@ public class LoanService {
     }
 
     // --- TOOL ---
-
     private ToolDTO getToolById(Long id, JwtAuthenticationToken principal) {
         HttpEntity<Void> entity = new HttpEntity<>(authHeaders(principal));
         ResponseEntity<ToolDTO> response = restTemplate.exchange(
@@ -298,7 +328,6 @@ public class LoanService {
     }
 
     // --- KARDEX ---
-
     private void sendToKardex(Long toolId, String toolName, String type, int qty, String user, JwtAuthenticationToken principal) {
         try {
             KardexDTO dto = new KardexDTO();
@@ -344,6 +373,7 @@ public class LoanService {
         private String name;
         private String status;
         private int availableStock;
+        private int replacementValue; // <--- AGREGADO PARA RECIBIR EL PRECIO
     }
 
     @Data
@@ -360,8 +390,13 @@ public class LoanService {
     public static class FineRequestDTO {
         private Long loanId;
         private Long clientId;
+        // Campos de nombres agregados
+        private String clientName;
+        private String clientKeycloakId;
+        private String toolName;
         private String type;
         private int amount;
+        private long overdueDays;
     }
 
     @Data

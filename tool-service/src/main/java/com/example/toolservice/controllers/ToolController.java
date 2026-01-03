@@ -47,6 +47,15 @@ public class ToolController {
         return ResponseEntity.ok(toolUpdated);
     }
 
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Void> updateStatus(
+            @PathVariable Long id,
+            @RequestParam String newStatus) {
+
+        toolService.updateToolStatus(id, newStatus);
+        return ResponseEntity.ok().build();
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteToolById(@PathVariable Long id) throws Exception {
         toolService.logicalDeleteTool(id);

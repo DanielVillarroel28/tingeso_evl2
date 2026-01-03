@@ -1,6 +1,5 @@
 package com.example.fineservice.services;
 
-
 import com.example.fineservice.model.FineDTO;
 import com.example.fineservice.model.FineRequestDTO;
 import com.example.fineservice.entities.FineEntity;
@@ -21,13 +20,14 @@ public class FineService {
     private FineRepository fineRepository;
 
     @Autowired
-    private ConfigurationService configurationService; // Asumo que esto es local en M4
+    private ConfigurationService configurationService;
 
     @Autowired
     private RestTemplate restTemplate;
 
-    // URL del servicio de Clientes (M3)
-    private final String CLIENT_SERVICE_URL = "http://client-service/api/clients";
+    // --- URL DEL SERVICIO DE CLIENTES (VÍA GATEWAY) ---
+    // Usamos localhost:8080 para que el Gateway maneje el enrutamiento y los prefijos.
+    private final String CLIENT_SERVICE_URL = "http://localhost:8080/CLIENT-SERVICE/api/v1/clients";
 
     // --- LISTADOS ---
 
@@ -50,34 +50,55 @@ public class FineService {
         FineEntity fine = new FineEntity();
         fine.setLoanId(request.getLoanId());
         fine.setClientId(request.getClientId());
+
+        // Guardamos nombres para historial
         fine.setClientName(request.getClientName());
         fine.setClientKeycloakId(request.getClientKeycloakId());
         fine.setToolName(request.getToolName());
+
         fine.setFineType(request.getType());
         fine.setCreationDate(LocalDate.now());
         fine.setStatus("Pendiente");
 
-        // LÓGICA DE CÁLCULO DE MONTO (Épica 4)
+        // Normalizamos el tipo a minúsculas para comparar sin errores
+        String type = request.getType() != null ? request.getType().toLowerCase() : "";
+
+        // LÓGICA DE CÁLCULO DE MONTO
         if (request.getAmount() > 0) {
-            // Caso: Daño irreparable (M2 envía el valor de reposición)
+            // Caso 1: M2 ya envió un monto explícito (ej: valor de reposición por daño total)
             fine.setAmount(request.getAmount());
         } else {
-            // Caso: M4 debe calcular según tarifas configuradas
+            // Caso 2: El monto viene en 0, debemos calcularlo según tarifas configuradas
             int calculatedAmount = 0;
-            if ("Atraso".equals(request.getType())) {
+
+            if (type.contains("atraso")) {
                 int dailyFee = configurationService.getFee("daily_late_fee");
-                calculatedAmount = (int) (request.getOverdueDays() * dailyFee);
-            } else if ("Daño reparable".equals(request.getType())) {
+                // Usamos los días de atraso que vienen del DTO, mínimo 1
+                long days = request.getOverdueDays() > 0 ? request.getOverdueDays() : 1;
+                calculatedAmount = (int) (days * dailyFee);
+
+            } else if (type.contains("reparable") || type.contains("dañada")) {
+                // Tarifa fija por reparación
                 calculatedAmount = configurationService.getFee("repair_fee");
+
+            } else if (type.contains("irreparable")) {
+                // Fallback por si acaso llega un daño irreparable con monto 0
+                // (aunque LoanService ya debería haber enviado el precio real)
+                calculatedAmount = 50000;
             }
+
             fine.setAmount(calculatedAmount);
         }
 
-        // Solo guardamos si el monto es mayor a 0 (para evitar multas de $0 por atrasos de 0 días)
+        // GUARDAR SOLO SI EL MONTO ES > 0
         if (fine.getAmount() > 0) {
             fineRepository.save(fine);
-            // Bloquear cliente en M3
+
+            // --- AQUÍ LLAMAMOS A CLIENT-SERVICE PARA BLOQUEARLO ---
             updateClientStatus(request.getClientId(), "Restringido");
+
+        } else {
+            System.err.println("ADVERTENCIA: Se intentó crear multa tipo '" + request.getType() + "' pero el monto calculado fue 0. NO SE GUARDÓ.");
         }
     }
 
@@ -92,11 +113,11 @@ public class FineService {
         fine.setPaymentDate(LocalDate.now());
         fineRepository.save(fine);
 
-        // Validar si el cliente queda libre de deudas
+        // Verificar si el cliente ya no tiene deudas pendientes
         boolean hasPending = !fineRepository.findPendingFinesByClientId(fine.getClientId()).isEmpty();
 
         if (!hasPending) {
-            // Desbloquear cliente en M3 (Comunicación HTTP)
+            // --- SI PAGÓ TODO, LO DESBLOQUEAMOS EN CLIENT-SERVICE ---
             updateClientStatus(fine.getClientId(), "Activo");
         }
     }
@@ -110,21 +131,29 @@ public class FineService {
     public FineDTO getFineByLoanId(Long loanId) {
         return fineRepository.findByLoanId(loanId)
                 .map(this::buildFineDTO)
-                .orElse(null); // O lanzar 404
+                .orElse(null);
     }
 
-    // --- HELPERS ---
+    // --- MÉTODO PRIVADO PARA LLAMAR A CLIENT-SERVICE ---
 
     private void updateClientStatus(Long clientId, String newStatus) {
         try {
-            // M3 debe tener endpoint PUT /api/clients/{id}/status?newStatus=...
-            restTemplate.put(CLIENT_SERVICE_URL + "/" + clientId + "/status?newStatus=" + newStatus, null);
+            // Construimos la URL: http://localhost:8080/CLIENT-SERVICE/api/v1/clients/{id}/status?newStatus=...
+            String url = CLIENT_SERVICE_URL + "/" + clientId + "/status?newStatus=" + newStatus;
+
+            // Hacemos la petición PUT
+            restTemplate.put(url, null);
+
+            System.out.println("Solicitud enviada a ClientService: Cambiar cliente " + clientId + " a estado " + newStatus);
+
         } catch (Exception e) {
-            System.err.println("Error actualizando estado cliente en M3: " + e.getMessage());
-            // En sistemas reales usarías Kafka/RabbitMQ para garantizar esto
+            System.err.println("Error crítico comunicando con ClientService: " + e.getMessage());
+            // Nota: En un entorno productivo, aquí deberías usar un patrón Circuit Breaker
+            // o cola de mensajes para reintentar luego.
         }
     }
 
+    // --- MAPPER ---
     private FineDTO buildFineDTO(FineEntity fine) {
         FineDTO dto = new FineDTO();
         dto.setId(fine.getId());

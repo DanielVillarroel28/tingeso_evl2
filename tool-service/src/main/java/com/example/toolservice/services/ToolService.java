@@ -86,6 +86,14 @@ public class ToolService {
 
     }
 
+    public void updateToolStatus(Long id, String newStatus) {
+        ToolEntity tool = toolRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Herramienta no encontrada con id: " + id));
+
+        tool.setStatus(newStatus);
+        toolRepository.save(tool);
+    }
+
     public ArrayList<ToolEntity> getTools() {
         return (ArrayList<ToolEntity>) toolRepository.findAll();
     }
