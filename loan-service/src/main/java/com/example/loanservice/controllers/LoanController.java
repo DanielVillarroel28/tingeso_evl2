@@ -16,14 +16,16 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/loans")
-@CrossOrigin("*")
 public class LoanController {
 
     @Autowired
     private LoanService loanService;
 
     @GetMapping("/")
-    public ResponseEntity<List<LoanWithFineInfoDTO>> listLoans() {
+    public ResponseEntity<List<LoanWithFineInfoDTO>> listLoans(jakarta.servlet.http.HttpServletRequest request) {
+        System.out.println("--- PETICIÓN RECIBIDA ---");
+        System.out.println("URL Real que llegó: " + request.getRequestURI());
+        System.out.println("-------------------------");
         List<LoanWithFineInfoDTO> loans = loanService.getLoansWithFineInfo();
         return ResponseEntity.ok(loans);
     }

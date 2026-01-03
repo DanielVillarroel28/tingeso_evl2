@@ -1,19 +1,22 @@
-server:
-  port: 8090
-
 spring:
   application:
-    name: client-service   # 👈 nombre visible en Eureka
+    name: client-service
+
+  # Spring Boot 3 + Spring Cloud 2023+: Config Server se configura con spring.config.import.
+  # Para desarrollo local, lo hacemos opcional para que el servicio levante aunque el config-server no esté arriba.
+  config:
+    import: optional:configserver:http://localhost:8081
+
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
     password: 1234
     driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
   security:
     oauth2:
       client:
@@ -31,12 +34,11 @@ spring:
         jwt:
           issuer-uri: http://localhost:9090/realms/toolrent-realm
 
+# Si usas Eureka, configúralo por properties (no necesitas @EnableEurekaClient)
 eureka:
   client:
-    register-with-eureka: true
-    fetch-registry: true
     service-url:
       defaultZone: http://localhost:8761/eureka
-  instance:
-    lease-renewal-interval-in-seconds: 10
-    lease-expiration-duration-in-seconds: 30
+
+server:
+  port: 8097

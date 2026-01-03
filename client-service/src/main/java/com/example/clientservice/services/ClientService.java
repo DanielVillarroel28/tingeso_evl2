@@ -27,7 +27,8 @@ public class ClientService {
     }
 
     public ClientEntity getClientById(Long id){
-        return clientRepository.findById(id).get();
+        return clientRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente no encontrado con id: " + id));
     }
 
     public ClientEntity getClientByRut(String rut){
@@ -48,14 +49,12 @@ public class ClientService {
 
         return clientRepository.save(client);
     }
-    public boolean deleteClient(Long id) throws Exception {
-        try{
-            clientRepository.deleteById(id);
-            return true;
-        } catch (Exception e) {
-            throw new Exception(e.getMessage());
-        }
 
+    public void deleteClient(Long id) {
+        if (!clientRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente no encontrado con id: " + id);
+        }
+        clientRepository.deleteById(id);
     }
 
     @Transactional
