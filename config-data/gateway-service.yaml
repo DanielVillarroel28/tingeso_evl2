@@ -21,27 +21,24 @@ spring:
         - id: tool-service
           uri: lb://tool-service
           predicates:
-            - Path=/tool-service/**      # <--- Y esto es un elemento de la lista de filtros
+            - Path=/tool-service/**
             
         # --- RUTA CLIENT-SERVICE ---
         - id: client-service
           uri: lb://client-service
           predicates:
-            - Path=/client-service/** # Sugerencia: Usa prefijos consistentes
+            - Path=/client-service/**
 
-            
         # --- OTROS SERVICIOS ---
         - id: loan-service
           uri: lb://loan-service
           predicates:
             - Path=/loan-service/**
 
-
         - id: kardex-service
           uri: lb://kardex-service
           predicates:
             - Path=/kardex-service/**
-
 
         - id: fine-service
           uri: lb://fine-service
@@ -51,8 +48,9 @@ spring:
       globalcors:
         corsConfigurations:
           "[/**]":
-            allowedOrigins:
-              - http://localhost:5173
+            # --- CORRECCIÓN CORS ---
+            allowedOriginPatterns:  # Usamos Patterns en lugar de Origins
+              - "*"                 # Permite localhost, 127.0.0.1, y cualquier puerto
             allowedMethods:
               - GET
               - POST
@@ -60,8 +58,6 @@ spring:
               - PATCH
               - DELETE
               - OPTIONS
-            allowedHeaders:
-              - Authorization
-              - Content-Type
-              - Accept
+            allowedHeaders:         # Permitimos todas las cabeceras para evitar bloqueos extra
+              - "*"
             allowCredentials: true
