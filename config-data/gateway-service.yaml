@@ -9,19 +9,23 @@ eureka:
       defaultZone: http://eureka-service:8761/eureka
   instance:
     hostname: gateway-service
-    prefer-ip-address: true # Recomendado para Kubernetes
+    prefer-ip-address: true
 
 spring:
   cloud:
     gateway:
-      # --- CORRECCIÓN CRÍTICA PARA EL 403 ---
+      # --- CONFIGURACIÓN DE CORS ---
       globalcors:
-        add-to-simple-url-handler-mapping: true # Permite que OPTIONS pase al manejador de CORS
+        add-to-simple-url-handler-mapping: true
         cors-configurations:
           '[/**]':
             allowedOriginPatterns:
               - "http://127.0.0.1:*"
               - "http://localhost:*"
+              # AGREGADO: Rangos de IPs locales para que funcione con Hyper-V y VirtualBox
+              - "http://192.168.*"
+              - "http://172.*"
+              - "http://10.*"
             allowedMethods:
               - "GET"
               - "POST"
@@ -36,26 +40,42 @@ spring:
       
       discovery:
         locator:
-          enabled: true
+          enabled: true # Esto permite acceder también por /NOMBRE-SERVICIO/
 
+      # --- RUTAS MANUALES ---
+      # Se recomienda usar StripPrefix=1 para que el microservicio reciba la ruta limpia
       routes:
         - id: tool-service
           uri: lb://tool-service
           predicates:
             - Path=/tool-service/**
+          filters:
+            - StripPrefix=1  # Convierte /tool-service/api/... en /api/...
+            
         - id: client-service
           uri: lb://client-service
           predicates:
             - Path=/client-service/**
+          filters:
+            - StripPrefix=1
+
         - id: loan-service
           uri: lb://loan-service
           predicates:
             - Path=/loan-service/**
+          filters:
+            - StripPrefix=1
+
         - id: kardex-service
           uri: lb://kardex-service
           predicates:
             - Path=/kardex-service/**
+          filters:
+            - StripPrefix=1
+
         - id: fine-service
           uri: lb://fine-service
           predicates:
             - Path=/fine-service/**
+          filters:
+            - StripPrefix=1
