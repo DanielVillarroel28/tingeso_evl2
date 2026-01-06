@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fine-service
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: fine-service
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fine-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fine-service
+  template:
+    metadata:
+      labels:
+        app: fine-service
+    spec:
+      containers:
+      - name: fine-service
+        image: danielv28/fine-service:latest # <--- CAMBIA ESTO
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_CONFIG_IMPORT
+          value: "optional:configserver:http://config-service:8888/"
+        - name: SPRING_APPLICATION_NAME
+          value: "fine-service"
+        - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+          value: "http://eureka-service:8761/eureka/"
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          value: "http://keycloak-service:8080/realms/toolrent-realm"
+        - name: SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI
+          value: "http://keycloak-service:8080/realms/toolrent-realm"
+
+        # Conexión con Client Service (para bloquear usuarios)
+        - name: SERVICES_CLIENT_BASE_URL
+          value: "http://client-service:8080"
+        
+        # Base de Datos
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-db:5432/fine_db"
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password

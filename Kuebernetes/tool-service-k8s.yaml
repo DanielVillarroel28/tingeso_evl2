@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tool-service
+spec:
+  type: ClusterIP
+  selector:
+    app: tool-service
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tool-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tool-service
+  template:
+    metadata:
+      labels:
+        app: tool-service
+    spec:
+      containers:
+        - name: tool-service
+          image: danielv28/tool-service:latest
+          env:
+            - name: SERVER_PORT
+              value: "8080"
+            - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+              value: "http://eureka-service:8761/eureka/"
+            
+            # Registro estable en Eureka
+            - name: EUREKA_INSTANCE_HOSTNAME
+              value: "tool-service"
+            - name: EUREKA_INSTANCE_INSTANCE_ID
+              value: "tool-service"
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "false"
+
+            # Base de Datos
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-db-service:5432/postgres"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "postgres"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: postgres-password
+            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+              value: "update"
+
+            # Seguridad: IP sincronizada
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+              value: "http://10.0.131.244:9090/realms/toolrent-realm"
+
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY
+              value: "DEBUG"

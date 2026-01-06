@@ -119,6 +119,7 @@
                 </configuration>
             </plugin>
         </plugins>
+        <finalName>kardex-service</finalName>
     </build>
 
 </project>

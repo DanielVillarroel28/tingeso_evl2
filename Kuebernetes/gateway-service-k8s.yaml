@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-service
+spec:
+  type: NodePort
+  selector:
+    app: gateway-service
+  ports:
+    - port: 8090
+      targetPort: 8090
+      nodePort: 30090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway-service
+  template:
+    metadata:
+      labels:
+        app: gateway-service
+    spec:
+      containers:
+        - name: gateway-service
+          image: danielv28/gateway-service:latest
+          env:
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server:8081"
+            - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+              value: "http://eureka-service:8761/eureka/"
+            
+            # Seguridad: IP de Windows (Keycloak)
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+              value: "http://10.0.131.244:9090/realms/toolrent-realm"
+            - name: SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI
+              value: "http://10.0.131.244:9090/realms/toolrent-realm"
+            - name: SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID
+              value: "toolrent-backend"
+            - name: SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET
+              value: "8IYpgVkH76TRaC4E8hEmnGF4r7wL3XgL"
+
+            # CORS para el Frontend
+            - name: SPRING_CLOUD_GATEWAY_GLOBALCORS_CORS_CONFIGURATIONS_[/**]_ALLOWED_ORIGINS
+              value: "http://172.26.26.203:30000"
+            - name: SPRING_CLOUD_GATEWAY_GLOBALCORS_CORS_CONFIGURATIONS_[/**]_ALLOWED_METHODS
+              value: "*"
+            - name: SPRING_CLOUD_GATEWAY_GLOBALCORS_CORS_CONFIGURATIONS_[/**]_ALLOWED_HEADERS
+              value: "*"
+            - name: SPRING_CLOUD_GATEWAY_GLOBALCORS_CORS_CONFIGURATIONS_[/**]_ALLOW_CREDENTIALS
+              value: "true"
+
+            # RUTA MANUAL PARA EVITAR ERRORES DE DNS (UnknownHostException)
+            - name: SPRING_CLOUD_GATEWAY_ROUTES_0_ID
+              value: "tool-service-route"
+            - name: SPRING_CLOUD_GATEWAY_ROUTES_0_URI
+              value: "http://tool-service:8080" # Uso del DNS de K8s directamente
+            - name: SPRING_CLOUD_GATEWAY_ROUTES_0_PREDICATES_0
+              value: "Path=/TOOL-SERVICE/**"
+            - name: SPRING_CLOUD_GATEWAY_ROUTES_0_FILTERS_0
+              value: "StripPrefix=1"
+            - name: SPRING_CLOUD_GATEWAY_ROUTES_0_FILTERS_1
+              value: "TokenRelay" # Propagación del token para evitar "Anonymous"
+
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY
+              value: "DEBUG"

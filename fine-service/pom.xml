@@ -126,6 +126,7 @@
                 </configuration>
             </plugin>
         </plugins>
+        <finalName>fine-service</finalName>
     </build>
 
 </project>

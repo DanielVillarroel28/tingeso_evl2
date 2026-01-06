@@ -117,6 +117,7 @@
                 </configuration>
             </plugin>
         </plugins>
+        <finalName>client-service</finalName>
     </build>
 
 </project>

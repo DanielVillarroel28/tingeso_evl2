@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: eureka-service  # AHORA SÍ: Coincide con lo que buscan tus otros servicios
+spec:
+  type: ClusterIP
+  selector:
+    app: eureka-service
+  ports:
+    - port: 8761
+      targetPort: 8761
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eureka-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eureka-service
+  template:
+    metadata:
+      labels:
+        app: eureka-service
+    spec:
+      containers:
+        - name: eureka-service
+          # Recuerda poner tu usuario: tu-usuario/eureka-service:latest
+          image: danielv28/eureka-service:latest
+          ports:
+            - containerPort: 8761
+          env:
+            # Apuntamos al config-server en puerto 8081
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server:8081"
+            - name: EUREKA_CLIENT_REGISTER_WITH_EUREKA
+              value: "false"
+            - name: EUREKA_CLIENT_FETCH_REGISTRY
+              value: "false"

@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: loan-service
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: loan-service
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loan-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loan-service
+  template:
+    metadata:
+      labels:
+        app: loan-service
+    spec:
+      containers:
+      - name: loan-service
+        image: danielv28/loan-service:latest # <--- CAMBIA ESTO
+        ports:
+        - containerPort: 8080
+        env:
+        # --- CONFIG SERVER & EUREKA ---
+        - name: SPRING_CONFIG_IMPORT
+          value: "optional:configserver:http://config-service:8888/"
+        - name: SPRING_APPLICATION_NAME
+          value: "loan-service"
+        - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+          value: "http://eureka-service:8761/eureka/"
+
+        # --- KEYCLOAK ---
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          value: "http://keycloak-service:8080/realms/toolrent-realm"
+        # Client Credentials para hablar con otros servicios (si aplica)
+        - name: SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI
+          value: "http://keycloak-service:8080/realms/toolrent-realm"
+
+        # --- BASE DE DATOS ---
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-db:5432/loan_db"
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+
+        # --- INTERCONEXIÓN DE MICROSERVICIOS ---
+        # Aquí definimos las URLs internas para que NO busque localhost
+        - name: SERVICES_TOOL_BASE_URL
+          value: "http://tool-service:8080"
+        - name: SERVICES_CLIENT_BASE_URL
+          value: "http://client-service:8080"
+        - name: SERVICES_FINE_BASE_URL
+          value: "http://fine-service:8080"
+        - name: SERVICES_KARDEX_BASE_URL
+          value: "http://kardex-service:8080"

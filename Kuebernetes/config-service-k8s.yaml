@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-server
+spec:
+  # Usamos ClusterIP porque solo los otros microservicios necesitan verlo internamente
+  type: ClusterIP
+  selector:
+    app: config-server
+  ports:
+    - port: 8081          # Puerto visible dentro del cluster
+      targetPort: 8081    # Puerto donde corre tu app Java
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-server
+  template:
+    metadata:
+      labels:
+        app: config-server
+    spec:
+      containers:
+        - name: config-server
+          # ¡REEMPLAZA ESTO CON TU IMAGEN REAL!
+          image: danielv28/config-service:latest
+          ports:
+            - containerPort: 8081
+          env:
+            # 1. Configuración del Repositorio Git
+            - name: SPRING_CLOUD_CONFIG_SERVER_GIT_URI
+              value: "https://github.com/DanielVillarroel28/tingeso_evl2.git"
+            
+            # 2. Carpeta donde están los archivos properties/yml
+            - name: SPRING_CLOUD_CONFIG_SERVER_GIT_SEARCH_PATHS
+              value: "config-data"
+            
+            # 3. Rama principal (asegúrate que sea 'main' o 'master' en tu repo)
+            - name: SPRING_CLOUD_CONFIG_SERVER_GIT_DEFAULT_LABEL
+              value: "main"
+
+            # 4. Forzamos a Spring Boot a usar el puerto 8081
+            - name: SERVER_PORT
+              value: "8081"

@@ -8,17 +8,8 @@ eureka:
     register-with-eureka: true
     service-url:
       # Corregido: "defaultZone" (CamelCase) es obligatorio, "default-zone" no funciona
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://eureka-service:8761/eureka
   instance:
-    # ESTO ES LO QUE TE FALTABA:
-    # 1. Fuerza a usar el hostname 'host.docker.internal' para que Docker/Local lo vean
-    hostname: host.docker.internal
-    
-    # 2. Le dice que NO use la IP numérica, sino el hostname que definimos arriba
-    prefer-ip-address: false
-    
-    # 3. ID limpio para Eureka (ej: tool-service:8093)
-    instance-id: ${spring.application.name}:${server.port}
-    
-    lease-renewal-interval-in-seconds: 10
-    lease-expiration-duration-in-seconds: 30
+    prefer-ip-address: true
+    hostname: tool-service
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}

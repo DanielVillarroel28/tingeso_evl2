@@ -20,13 +20,9 @@ spring:
         cors-configurations:
           '[/**]':
             allowedOriginPatterns:
-              - "http://127.0.0.1:*"
               - "http://localhost:*"
-              - "http://192.168.*"
-              - "http://172.*"
-              - "http://10.*"
-              # Agregamos específicamente la IP de tu Minikube para evitar bloqueos
-              - "http://172.26.26.203:30000"
+              - "http://127.0.0.1:*"
+              - "http://172.26.26.203:30000" # Tu IP de Minikube (Frontend)
             allowedMethods:
               - "GET"
               - "POST"
@@ -38,14 +34,14 @@ spring:
 
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
-        - TokenRelay # <--- AGREGADO: Esto propaga el token JWT a todos los servicios
-      
+        - TokenRelay # <--- FUNDAMENTAL PARA LA SEGURIDAD
+
       discovery:
         locator:
           enabled: true
-          lower-case-service-id: false # <--- CAMBIADO: Para que respete las mayúsculas de Eureka
+          lower-case-service-id: false # Para que reconozca las mayúsculas de Eureka
 
-      # --- RUTAS MANUALES EN MAYÚSCULAS ---
+      # --- RUTAS EN MAYÚSCULAS PARA EL FRONTEND ---
       routes:
         - id: tool-service
           uri: lb://tool-service

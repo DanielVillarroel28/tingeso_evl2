@@ -1,11 +1,14 @@
 package com.example.toolservice.services;
 
 import com.example.toolservice.entities.ToolEntity;
-import com.example.toolservice.model.KardexDTO; // Importar el DTO creado arriba
+import com.example.toolservice.model.KardexDTO;
 import com.example.toolservice.repositories.ToolRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 
@@ -16,18 +19,27 @@ public class ToolService {
     ToolRepository toolRepository;
 
     @Autowired
-    RestTemplate restTemplate; // Asegúrate de tener el Bean configurado (ver abajo)
+    RestTemplate restTemplate;
 
+    // --- GUARDAR HERRAMIENTA (SOLUCIÓN 1: ESTADO INICIAL) ---
     public ToolEntity saveTool(ToolEntity tool) {
-        // 1. Guardar la herramienta en la BD local de M1
+        // 1. Estado operativo actual
         tool.setStatus("Disponible");
-        // Asignar valores por defecto si vienen nulos para evitar errores
+
+        // 2. Estado Físico Inicial (Agregado para cumplir tu requerimiento)
+        // Asumiendo que tu entidad tiene el campo 'stateInitial' mapeado a 'state_initial'
+        // Si tu campo en la entidad se llama diferente, ajusta este setter.
+        if (tool.getStateInitial() == null || tool.getStateInitial().isEmpty()) {
+            tool.setStateInitial("NUEVA");
+        }
+
+        // Asignar stock por defecto
         if (tool.getAvailableStock() == 0) tool.setAvailableStock(1);
 
         ToolEntity newTool = toolRepository.save(tool);
 
-        // 2. Comunicar el movimiento al microservicio Kardex (M5)
-        sendToKardex(newTool, "Ingreso", 1, "ADMIN"); // "ADMIN" debería venir del token
+        // 3. Kardex
+        sendToKardex(newTool, "Ingreso", 1, "ADMIN");
 
         return newTool;
     }
@@ -39,13 +51,12 @@ public class ToolService {
         tool.setStatus("Dada de baja");
         toolRepository.save(tool);
 
-        // Comunicar la baja al Kardex
         sendToKardex(tool, "Baja", -1, "ADMIN");
 
         return true;
     }
 
-    // Método auxiliar para evitar repetir código de conexión
+    // Método auxiliar corregido
     private void sendToKardex(ToolEntity tool, String type, int quantity, String user) {
         try {
             KardexDTO dto = new KardexDTO();
@@ -56,19 +67,19 @@ public class ToolService {
             dto.setQuantityAffected(quantity);
             dto.setUserResponsible(user);
 
-            String url = "http://kardex-service/api/kardex/movement";
+            // CAMBIO: Usar Gateway (localhost:8080) y la ruta con /v1
+            // Asegúrate que el Gateway tenga StripPrefix=1 para KARDEX-SERVICE
+            String url = "http://localhost:8080/KARDEX-SERVICE/api/v1/kardex/movement";
 
             restTemplate.postForObject(url, dto, Void.class);
 
         } catch (Exception e) {
-            // Manejar error: Podrías guardar en una tabla de "intentos fallidos"
-            // o simplemente loguear que el kardex no respondió.
             System.err.println("Error comunicando con Kardex: " + e.getMessage());
         }
     }
 
     public ToolEntity getToolById(Long id) {
-        return toolRepository.findById(id).get();
+        return toolRepository.findById(id).orElse(null);
     }
 
     public ToolEntity updateTool(Long id, ToolEntity tool) {
@@ -82,15 +93,19 @@ public class ToolService {
         } catch (Exception e) {
             throw new Exception(e.getMessage());
         }
-
-
     }
 
+    // --- ACTUALIZAR ESTADO (SOLUCIÓN 2: DECODIFICAR URL) ---
     public void updateToolStatus(Long id, String newStatus) {
         ToolEntity tool = toolRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Herramienta no encontrada con id: " + id));
 
-        tool.setStatus(newStatus);
+        // AQUÍ ESTÁ EL TRUCO: Decodificamos el texto antes de guardar.
+        // Esto transforma "Dada%20de%20baja" -> "Dada de baja"
+        // y "En%20reparaci%C3%B3n" -> "En reparación"
+        String decodedStatus = URLDecoder.decode(newStatus, StandardCharsets.UTF_8);
+
+        tool.setStatus(decodedStatus);
         toolRepository.save(tool);
     }
 
@@ -98,4 +113,3 @@ public class ToolService {
         return (ArrayList<ToolEntity>) toolRepository.findAll();
     }
 }
-

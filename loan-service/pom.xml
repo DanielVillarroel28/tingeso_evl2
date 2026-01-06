@@ -127,6 +127,7 @@
                 </configuration>
             </plugin>
         </plugins>
+        <finalName>loan-service</finalName>
     </build>
 
 </project>

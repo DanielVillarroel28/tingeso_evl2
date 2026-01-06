@@ -328,6 +328,7 @@ public class LoanService {
     }
 
     // --- KARDEX ---
+    // Método auxiliar corregido en LoanService
     private void sendToKardex(Long toolId, String toolName, String type, int qty, String user, JwtAuthenticationToken principal) {
         try {
             KardexDTO dto = new KardexDTO();
@@ -339,8 +340,11 @@ public class LoanService {
             dto.setMovementDate(LocalDateTime.now());
 
             HttpEntity<KardexDTO> entity = new HttpEntity<>(dto, authHeaders(principal));
+
+            // CAMBIO AQUÍ: Agregado /v1 en la ruta
+            // Asumiendo que 'kardexServiceBaseUrl' en application.yaml es: http://localhost:8080/KARDEX-SERVICE
             restTemplate.exchange(
-                    kardexServiceBaseUrl + "/api/kardex/movement",
+                    kardexServiceBaseUrl + "/api/v1/kardex/movement",
                     HttpMethod.POST,
                     entity,
                     Void.class
