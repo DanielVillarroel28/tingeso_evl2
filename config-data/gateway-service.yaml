@@ -1,14 +1,16 @@
 server:
   port: 8080
-  
+
 eureka:
   client:
     fetch-registry: true
     register-with-eureka: true
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      # CORRECCIÓN 1: Usar el nombre del servicio de K8s, NO localhost
+      defaultZone: http://eureka-service:8761/eureka
   instance:
-    hostname: localhost
+    # CORRECCIÓN 2: Usar hostname predeterminado para evitar conflictos de IP
+    prefer-ip-address: true
 
 spring:
   cloud:
@@ -16,30 +18,25 @@ spring:
       discovery:
         locator:
           enabled: true
+          lower-case-service-id: true
       routes:
-        # --- RUTA TOOL-SERVICE ---
+        # --- TUS RUTAS (Las mantengo igual) ---
         - id: tool-service
           uri: lb://tool-service
           predicates:
             - Path=/tool-service/**
-            
-        # --- RUTA CLIENT-SERVICE ---
         - id: client-service
           uri: lb://client-service
           predicates:
             - Path=/client-service/**
-
-        # --- OTROS SERVICIOS ---
         - id: loan-service
           uri: lb://loan-service
           predicates:
             - Path=/loan-service/**
-
         - id: kardex-service
           uri: lb://kardex-service
           predicates:
             - Path=/kardex-service/**
-
         - id: fine-service
           uri: lb://fine-service
           predicates:
@@ -48,9 +45,9 @@ spring:
       globalcors:
         corsConfigurations:
           "[/**]":
-            # --- CORRECCIÓN CORS ---
-            allowedOriginPatterns:  # Usamos Patterns en lugar de Origins
-              - "*"                 # Permite localhost, 127.0.0.1, y cualquier puerto
+            # CORRECCIÓN 3: Permitir TODOS los orígenes (Soluciona tu error de CORS)
+            allowedOriginPatterns: 
+              - "*"
             allowedMethods:
               - GET
               - POST
@@ -58,6 +55,6 @@ spring:
               - PATCH
               - DELETE
               - OPTIONS
-            allowedHeaders:         # Permitimos todas las cabeceras para evitar bloqueos extra
+            allowedHeaders:
               - "*"
             allowCredentials: true
