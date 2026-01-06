@@ -22,10 +22,11 @@ spring:
             allowedOriginPatterns:
               - "http://127.0.0.1:*"
               - "http://localhost:*"
-              # AGREGADO: Rangos de IPs locales para que funcione con Hyper-V y VirtualBox
               - "http://192.168.*"
               - "http://172.*"
               - "http://10.*"
+              # Agregamos específicamente la IP de tu Minikube para evitar bloqueos
+              - "http://172.26.26.203:30000"
             allowedMethods:
               - "GET"
               - "POST"
@@ -37,45 +38,46 @@ spring:
 
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+        - TokenRelay # <--- AGREGADO: Esto propaga el token JWT a todos los servicios
       
       discovery:
         locator:
-          enabled: true # Esto permite acceder también por /NOMBRE-SERVICIO/
+          enabled: true
+          lower-case-service-id: false # <--- CAMBIADO: Para que respete las mayúsculas de Eureka
 
-      # --- RUTAS MANUALES ---
-      # Se recomienda usar StripPrefix=1 para que el microservicio reciba la ruta limpia
+      # --- RUTAS MANUALES EN MAYÚSCULAS ---
       routes:
         - id: tool-service
           uri: lb://tool-service
           predicates:
-            - Path=/tool-service/**
+            - Path=/TOOL-SERVICE/**
           filters:
-            - StripPrefix=1  # Convierte /tool-service/api/... en /api/...
+            - StripPrefix=1
             
         - id: client-service
           uri: lb://client-service
           predicates:
-            - Path=/client-service/**
+            - Path=/CLIENT-SERVICE/**
           filters:
             - StripPrefix=1
 
         - id: loan-service
           uri: lb://loan-service
           predicates:
-            - Path=/loan-service/**
+            - Path=/LOAN-SERVICE/**
           filters:
             - StripPrefix=1
 
         - id: kardex-service
           uri: lb://kardex-service
           predicates:
-            - Path=/kardex-service/**
+            - Path=/KARDEX-SERVICE/**
           filters:
             - StripPrefix=1
 
         - id: fine-service
           uri: lb://fine-service
           predicates:
-            - Path=/fine-service/**
+            - Path=/FINE-SERVICE/**
           filters:
             - StripPrefix=1
