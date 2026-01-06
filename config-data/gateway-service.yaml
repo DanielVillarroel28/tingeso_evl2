@@ -1,26 +1,44 @@
 server:
-  port: 8080
+  port: 8090
 
 eureka:
   client:
     fetch-registry: true
     register-with-eureka: true
     service-url:
-      # CORRECCIÓN 1: Usar el nombre del servicio de K8s, NO localhost
       defaultZone: http://eureka-service:8761/eureka
   instance:
-    # CORRECCIÓN 2: Usar hostname predeterminado para evitar conflictos de IP
-    prefer-ip-address: true
+    hostname: gateway-service
+    prefer-ip-address: true # Recomendado para Kubernetes
 
 spring:
   cloud:
     gateway:
+      # --- CORRECCIÓN CRÍTICA PARA EL 403 ---
+      globalcors:
+        add-to-simple-url-handler-mapping: true # Permite que OPTIONS pase al manejador de CORS
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns:
+              - "http://127.0.0.1:*"
+              - "http://localhost:*"
+            allowedMethods:
+              - "GET"
+              - "POST"
+              - "PUT"
+              - "DELETE"
+              - "OPTIONS"
+            allowedHeaders: "*"
+            allowCredentials: true
+
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+      
       discovery:
         locator:
           enabled: true
-          lower-case-service-id: true
+
       routes:
-        # --- TUS RUTAS (Las mantengo igual) ---
         - id: tool-service
           uri: lb://tool-service
           predicates:
@@ -41,20 +59,3 @@ spring:
           uri: lb://fine-service
           predicates:
             - Path=/fine-service/**
-            
-      globalcors:
-        corsConfigurations:
-          "[/**]":
-            # CORRECCIÓN 3: Permitir TODOS los orígenes (Soluciona tu error de CORS)
-            allowedOriginPatterns: 
-              - "*"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - PATCH
-              - DELETE
-              - OPTIONS
-            allowedHeaders:
-              - "*"
-            allowCredentials: true

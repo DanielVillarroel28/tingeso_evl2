@@ -1,6 +1,6 @@
 server:
   # Usa el puerto 8093 por defecto si no se especifica otro
-  port: ${PORT:${SERVER_PORT:8093}}
+  port: ${PORT:${SERVER_PORT:0}}
 
 eureka:
   client:
