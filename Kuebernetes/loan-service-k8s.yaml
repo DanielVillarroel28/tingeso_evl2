@@ -63,4 +63,4 @@ spec:
               value: "update"
           # Keycloak
             - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
-              value: "http://host.minikube.internal:9090/realms/toolrent-realm"
+              value: "http://10.0.134.50:9090/realms/toolrent-realm"

@@ -41,6 +41,9 @@ spec:
             - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
               value: "false"
 
+            - name: SERVICES_KARDEX_BASE-URL
+              value: "http://kardex-service:8080"
+
           # Base de Datos
             - name: SPRING_DATASOURCE_URL
               value: "jdbc:postgresql://postgres-db-service:5432/postgres"
@@ -57,9 +60,6 @@ spec:
           # Keycloak
             - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
               value: "http://10.0.134.50:9090/realms/toolrent-realm"
-
-            - name: SERVICES_KARDEX_BASE-URL
-              value: "http://kardex-service:8080"
 
             - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY
               value: "DEBUG"

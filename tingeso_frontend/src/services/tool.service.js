@@ -1,12 +1,10 @@
 import httpClient from "../http-common";
 
 const getAll = () => {
-    // ⚠️ Se quitó el "/" final
     return httpClient.get('/TOOL-SERVICE/api/v1/tools');
 }
 
 const create = data => {
-    // ⚠️ Se quitó el "/" final
     return httpClient.post("/TOOL-SERVICE/api/v1/tools", data);
 }
 

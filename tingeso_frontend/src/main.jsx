@@ -12,7 +12,6 @@ const eventLogger = (event, error) => {
 
 const tokenLogger = (tokens) => {
   console.log('🔐 [Keycloak tokens]', tokens);
-  // Guardar el token manualmente si lo necesitas para Axios
   localStorage.setItem("token", tokens.token);
 };
 
@@ -20,10 +19,9 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ReactKeycloakProvider
       authClient={keycloak}
-      // 👇 AQUÍ ESTÁ EL CAMBIO IMPORTANTE 👇
       initOptions={{ 
         onLoad: 'login-required',
-        checkLoginIframe: false  // <--- ESTA LÍNEA ARREGLA EL TIMEOUT
+        checkLoginIframe: false  
       }}
       onEvent={eventLogger}
       onTokens={tokenLogger}

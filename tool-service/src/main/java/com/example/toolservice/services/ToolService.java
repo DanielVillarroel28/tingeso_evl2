@@ -27,6 +27,7 @@ public class ToolService {
     @Autowired
     RestTemplate restTemplate;
 
+    // Inyección de la URL igual que en LoanService
     @Value("${services.kardex.base-url:http://kardex-service:8080}")
     private String kardexServiceBaseUrl;
 
@@ -61,10 +62,9 @@ public class ToolService {
         return true;
     }
 
-    // Enviar al kardex para registrar movimientos
     private void sendToKardex(ToolEntity tool, String type, int quantity, String user) {
         try {
-            // Ahora usamos la clase interna definida abajo
+            // Creamos el DTO (usando la clase interna definida abajo)
             KardexDTO dto = new KardexDTO();
             dto.setToolId(tool.getId());
             dto.setToolName(tool.getName());
@@ -73,19 +73,12 @@ public class ToolService {
             dto.setQuantityAffected(quantity);
             dto.setUserResponsible(user);
 
-            // Construcción correcta de la URL usando la variable inyectada
             String url = kardexServiceBaseUrl + "/api/v1/kardex/movement";
 
-            HttpHeaders headers = new HttpHeaders();
-            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-            if (attrs != null) {
-                String token = attrs.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
-                if (token != null) {
-                    headers.set(HttpHeaders.AUTHORIZATION, token);
-                }
-            }
+            // Usamos authHeaders() para obtener el token automáticamente
+            HttpEntity<KardexDTO> entity = new HttpEntity<>(dto, authHeaders());
 
-            HttpEntity<KardexDTO> entity = new HttpEntity<>(dto, headers);
+            // Enviamos usando exchange (igual que LoanService)
             restTemplate.exchange(url, HttpMethod.POST, entity, Void.class);
 
             System.out.println("Movimiento enviado a Kardex exitosamente: " + type);
@@ -93,6 +86,23 @@ public class ToolService {
         } catch (Exception e) {
             System.err.println("Error comunicando con Kardex: " + e.getMessage());
         }
+    }
+
+    // Helper para obtener los headers con el Token
+    private HttpHeaders authHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        try {
+            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                String token = attrs.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
+                if (token != null) {
+                    headers.set(HttpHeaders.AUTHORIZATION, token);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("No se pudo obtener el token de seguridad: " + e.getMessage());
+        }
+        return headers;
     }
 
     public ToolEntity getToolById(Long id) {
