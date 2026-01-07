@@ -1,9 +1,6 @@
 spring:
   application:
-    name: tool-service
-
-  # Spring Boot 3 + Spring Cloud 2023+: Config Server se configura con spring.config.import.
-  # Para desarrollo local, lo hacemos opcional para que el servicio levante aunque el config-server no esté arriba.
+    name: report-service
   config:
     import: optional:configserver:http://localhost:8081
 
@@ -34,8 +31,7 @@ spring:
         jwt:
           issuer-uri: http://localhost:9090/realms/toolrent-realm
 
-# Si usas Eureka, configúralo por properties (no necesitas @EnableEurekaClient)
 eureka:
-   client:
-     service-url:
-       defaultZone: http://localhost:8761/eureka
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
