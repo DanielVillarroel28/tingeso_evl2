@@ -5,9 +5,15 @@ import com.example.fineservice.model.FineRequestDTO;
 import com.example.fineservice.entities.FineEntity;
 import com.example.fineservice.repositories.FineRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -25,9 +31,9 @@ public class FineService {
     @Autowired
     private RestTemplate restTemplate;
 
-    // --- URL DEL SERVICIO DE CLIENTES (VÍA GATEWAY) ---
-    // Usamos localhost:8080 para que el Gateway maneje el enrutamiento y los prefijos.
-    private final String CLIENT_SERVICE_URL = "http://localhost:8080/CLIENT-SERVICE/api/v1/clients";
+    // --- CORRECCIÓN CLAVE: Valor por defecto para evitar errores de URI ---
+    @Value("${services.client.base-url:http://client-service:8080}")
+    private String clientServiceBaseUrl;
 
     // --- LISTADOS ---
 
@@ -43,62 +49,48 @@ public class FineService {
                 .collect(Collectors.toList());
     }
 
-    // --- CREACIÓN DE MULTAS (LLAMADO POR M2-LOANS) ---
+    // --- CREACIÓN DE MULTAS (Llamado por LoanService) ---
 
     @Transactional
     public void createFine(FineRequestDTO request) {
         FineEntity fine = new FineEntity();
         fine.setLoanId(request.getLoanId());
         fine.setClientId(request.getClientId());
-
-        // Guardamos nombres para historial
         fine.setClientName(request.getClientName());
         fine.setClientKeycloakId(request.getClientKeycloakId());
         fine.setToolName(request.getToolName());
-
         fine.setFineType(request.getType());
         fine.setCreationDate(LocalDate.now());
         fine.setStatus("Pendiente");
 
-        // Normalizamos el tipo a minúsculas para comparar sin errores
         String type = request.getType() != null ? request.getType().toLowerCase() : "";
+        int calculatedAmount = 0;
 
-        // LÓGICA DE CÁLCULO DE MONTO
+        // 1. Prioridad: Monto explícito enviado por LoanService (ej. valor de reposición)
         if (request.getAmount() > 0) {
-            // Caso 1: M2 ya envió un monto explícito (ej: valor de reposición por daño total)
-            fine.setAmount(request.getAmount());
+            calculatedAmount = request.getAmount();
         } else {
-            // Caso 2: El monto viene en 0, debemos calcularlo según tarifas configuradas
-            int calculatedAmount = 0;
-
+            // 2. Fallback: Cálculo por tarifas configuradas
             if (type.contains("atraso")) {
                 int dailyFee = configurationService.getFee("daily_late_fee");
-                // Usamos los días de atraso que vienen del DTO, mínimo 1
                 long days = request.getOverdueDays() > 0 ? request.getOverdueDays() : 1;
                 calculatedAmount = (int) (days * dailyFee);
 
             } else if (type.contains("reparable") || type.contains("dañada")) {
-                // Tarifa fija por reparación
                 calculatedAmount = configurationService.getFee("repair_fee");
 
             } else if (type.contains("irreparable")) {
-                // Fallback por si acaso llega un daño irreparable con monto 0
-                // (aunque LoanService ya debería haber enviado el precio real)
-                calculatedAmount = 50000;
+                calculatedAmount = 50000; // Valor por defecto de seguridad
             }
-
-            fine.setAmount(calculatedAmount);
         }
 
-        // GUARDAR SOLO SI EL MONTO ES > 0
+        fine.setAmount(calculatedAmount);
+
+        // Guardamos solo si hay monto y restringimos al cliente
         if (fine.getAmount() > 0) {
             fineRepository.save(fine);
-
-            // --- AQUÍ LLAMAMOS A CLIENT-SERVICE PARA BLOQUEARLO ---
+            System.out.println("Multa creada. Restringiendo cliente " + request.getClientId());
             updateClientStatus(request.getClientId(), "Restringido");
-
-        } else {
-            System.err.println("ADVERTENCIA: Se intentó crear multa tipo '" + request.getType() + "' pero el monto calculado fue 0. NO SE GUARDÓ.");
         }
     }
 
@@ -113,16 +105,46 @@ public class FineService {
         fine.setPaymentDate(LocalDate.now());
         fineRepository.save(fine);
 
-        // Verificar si el cliente ya no tiene deudas pendientes
-        boolean hasPending = !fineRepository.findPendingFinesByClientId(fine.getClientId()).isEmpty();
+        // --- VALIDACIÓN: ¿Quedan deudas? ---
+        List<FineEntity> pendingFines = fineRepository.findPendingFinesByClientId(fine.getClientId());
 
-        if (!hasPending) {
-            // --- SI PAGÓ TODO, LO DESBLOQUEAMOS EN CLIENT-SERVICE ---
+        if (pendingFines.isEmpty()) {
+            System.out.println("Cliente " + fine.getClientId() + " sin deudas pendientes. Activando...");
             updateClientStatus(fine.getClientId(), "Activo");
+        } else {
+            System.out.println("Cliente " + fine.getClientId() + " aún tiene " + pendingFines.size() + " multas pendientes.");
         }
     }
 
-    // --- CONSULTAS EXTERNAS (PARA M2-LOANS) ---
+    // --- COMUNICACIÓN CON CLIENT-SERVICE ---
+
+    private void updateClientStatus(Long clientId, String newStatus) {
+        try {
+            // Construcción robusta de la URL
+            String url = clientServiceBaseUrl + "/api/v1/clients/" + clientId + "/status?newStatus=" + newStatus;
+
+            System.out.println("Llamando a ClientService: " + url);
+
+            // Propagación del Token JWT
+            HttpHeaders headers = new HttpHeaders();
+            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                String token = attrs.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
+                if (token != null) {
+                    headers.set(HttpHeaders.AUTHORIZATION, token);
+                }
+            }
+
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            restTemplate.exchange(url, HttpMethod.PUT, entity, Void.class);
+            System.out.println("Estado actualizado exitosamente a: " + newStatus);
+
+        } catch (Exception e) {
+            System.err.println("Error crítico comunicando con ClientService: " + e.getMessage());
+        }
+    }
+
+    // --- MÉTODOS DE CONSULTA ADICIONALES ---
 
     public boolean hasPendingFines(Long clientId) {
         return !fineRepository.findPendingFinesByClientId(clientId).isEmpty();
@@ -134,26 +156,8 @@ public class FineService {
                 .orElse(null);
     }
 
-    // --- MÉTODO PRIVADO PARA LLAMAR A CLIENT-SERVICE ---
-
-    private void updateClientStatus(Long clientId, String newStatus) {
-        try {
-            // Construimos la URL: http://localhost:8080/CLIENT-SERVICE/api/v1/clients/{id}/status?newStatus=...
-            String url = CLIENT_SERVICE_URL + "/" + clientId + "/status?newStatus=" + newStatus;
-
-            // Hacemos la petición PUT
-            restTemplate.put(url, null);
-
-            System.out.println("Solicitud enviada a ClientService: Cambiar cliente " + clientId + " a estado " + newStatus);
-
-        } catch (Exception e) {
-            System.err.println("Error crítico comunicando con ClientService: " + e.getMessage());
-            // Nota: En un entorno productivo, aquí deberías usar un patrón Circuit Breaker
-            // o cola de mensajes para reintentar luego.
-        }
-    }
-
     // --- MAPPER ---
+
     private FineDTO buildFineDTO(FineEntity fine) {
         FineDTO dto = new FineDTO();
         dto.setId(fine.getId());

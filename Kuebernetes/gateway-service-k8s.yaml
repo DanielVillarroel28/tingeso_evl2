@@ -36,9 +36,9 @@ spec:
             
             # Seguridad: IP de Windows (Keycloak)
             - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
-              value: "http://10.0.131.244:9090/realms/toolrent-realm"
+              value: "http://host.minikube.internal:9090/realms/toolrent-realm"
             - name: SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI
-              value: "http://10.0.131.244:9090/realms/toolrent-realm"
+              value: "http://host.minikube.internal:9090/realms/toolrent-realm"
             - name: SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID
               value: "toolrent-backend"
             - name: SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET

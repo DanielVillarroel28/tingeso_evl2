@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: loan-service
+spec:
+  type: ClusterIP
+  selector:
+    app: loan-service
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loan-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loan-service
+  template:
+    metadata:
+      labels:
+        app: loan-service
+    spec:
+      containers:
+        - name: loan-service
+          image: danielv28/loan-service:latest
+          env:
+            - name: SERVER_PORT
+              value: "8080"
+            - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+              value: "http://eureka-service:8761/eureka/"
+            
+            - name: EUREKA_INSTANCE_HOSTNAME
+              value: "loan-service"
+            - name: EUREKA_INSTANCE_INSTANCE_ID
+              value: "loan-service"
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "false"
+
+            # URLs DE COMUNICACIÓN INTERNA (CRÍTICO)
+            - name: SERVICES_TOOL_BASE-URL
+              value: "http://tool-service:8080"
+            - name: SERVICES_CLIENT_BASE-URL
+              value: "http://client-service:8080"
+            - name: SERVICES_KARDEX_BASE-URL
+              value: "http://kardex-service:8080"
+            - name: SERVICES_FINE_BASE-URL
+              value: "http://fine-service:8080"
+
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-db-service:5432/postgres"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "postgres"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: postgres-password
+            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+              value: "update"
+
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+              value: "http://host.minikube.internal:9090/realms/toolrent-realm"
