@@ -12,6 +12,7 @@ import AddEditClient from './components/addEditClient';
 import FineList from './components/FineList';
 import ManageFees from './components/ManageFees';
 import KardexView from './components/KardexView';
+import Reports from './components/Reports'
 import { useKeycloak } from "@react-keycloak/web";
 
 function App() {
@@ -55,6 +56,7 @@ function App() {
               <Route path="/fines" element={<PrivateRoute element={<FineList/>} rolesAllowed={["USER","ADMIN"]} />} />
               <Route path="/fees" element={<PrivateRoute element={<ManageFees/>} rolesAllowed={["USER","ADMIN"]} />} />
               <Route path="/kardex" element={<PrivateRoute element={<KardexView/>} rolesAllowed={["ADMIN"]} />} />
+              <Route path="/reports" element={<PrivateRoute element={<Reports/>} rolesAllowed={["USER-","ADMIN"]} />} />
               <Route path="/profile/edit" element={<AddEditClient />} />
               <Route path="*" element={<Home/>} />
             </Routes>

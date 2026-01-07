@@ -24,6 +24,9 @@ spring:
               - "http://127.0.0.1:*"
               - "http://172.26.26.203:30000"
               - "http://172.27.241.145:30000"
+              - "http://192.168.*.*:*" 
+              - "http://172.*.*.*:*"
+              - "http://10.*.*.*:*"
             allowedMethods:
               - "GET"
               - "POST"
@@ -76,5 +79,12 @@ spring:
           uri: lb://fine-service
           predicates:
             - Path=/FINE-SERVICE/**
+          filters:
+            - StripPrefix=1
+
+        - id: report-service
+          uri: lb://report-service
+          predicates:
+            - Path=/REPORT-SERVICE/**
           filters:
             - StripPrefix=1

@@ -15,6 +15,7 @@ import PaidIcon from "@mui/icons-material/Paid";
 import CalculateIcon from "@mui/icons-material/Calculate";
 import AnalyticsIcon from "@mui/icons-material/Analytics";
 import DiscountIcon from "@mui/icons-material/Discount";
+import AssessmentIcon from "@mui/icons-material/Assessment";
 import HailIcon from "@mui/icons-material/Hail";
 import MedicationLiquidIcon from "@mui/icons-material/MedicationLiquid";
 
@@ -60,6 +61,11 @@ export default function Sidemenu({ open, toggleDrawer }) {
         <ListItemButton onClick={() => navigate("/fines")}>
           <ListItemIcon><CalculateIcon /></ListItemIcon>
           <ListItemText primary="Tarifas y multas" />
+        </ListItemButton>
+
+        <ListItemButton onClick={() => navigate("/reports")}>
+          <ListItemIcon><AssessmentIcon /></ListItemIcon>
+          <ListItemText primary="Reportes y Consultas" />
         </ListItemButton>
 
         {/* Solo visible para el rol "ADMIN" */}
