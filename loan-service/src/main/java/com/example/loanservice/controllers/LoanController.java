@@ -30,7 +30,7 @@ public class LoanController {
         return ResponseEntity.ok(loans);
     }
 
-    // `src/main/java/com/example/loanservice/controllers/LoanController.java`
+
     @PutMapping("/{id}")
     public ResponseEntity<LoanEntity> updateLoan(@PathVariable Long id, @RequestBody LoanEntity loan) {
         loan.setId(id);

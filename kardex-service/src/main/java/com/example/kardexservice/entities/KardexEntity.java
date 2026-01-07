@@ -18,16 +18,9 @@ public class KardexEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // --- CAMBIO IMPORTANTE ---
-    // Eliminamos: private ToolEntity tool;
-    // Agregamos el ID para referencia lógica
     @Column(name = "tool_id", nullable = false)
     private Long toolId;
-
-    // Opcional: Guardar el nombre para no tener que pedirlo al M1 al generar reportes
     private String toolName;
-    // -------------------------
-
     private String movementType;
     private LocalDateTime movementDate;
     private int quantityAffected;

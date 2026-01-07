@@ -28,6 +28,7 @@ spec:
         - name: loan-service
           image: danielv28/loan-service:latest
           env:
+          #Eureka
             - name: SERVER_PORT
               value: "8080"
             - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
@@ -39,8 +40,7 @@ spec:
               value: "loan-service"
             - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
               value: "false"
-
-            # URLs DE COMUNICACIÓN INTERNA (CRÍTICO)
+          # URLs DE COMUNICACIÓN INTERNA
             - name: SERVICES_TOOL_BASE-URL
               value: "http://tool-service:8080"
             - name: SERVICES_CLIENT_BASE-URL
@@ -49,7 +49,7 @@ spec:
               value: "http://kardex-service:8080"
             - name: SERVICES_FINE_BASE-URL
               value: "http://fine-service:8080"
-
+          # Base de Datos
             - name: SPRING_DATASOURCE_URL
               value: "jdbc:postgresql://postgres-db-service:5432/postgres"
             - name: SPRING_DATASOURCE_USERNAME
@@ -61,6 +61,6 @@ spec:
                   key: postgres-password
             - name: SPRING_JPA_HIBERNATE_DDL_AUTO
               value: "update"
-
+          # Keycloak
             - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
               value: "http://host.minikube.internal:9090/realms/toolrent-realm"

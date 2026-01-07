@@ -1,5 +1,4 @@
 server:
-  # Usa el puerto 8093 por defecto si no se especifica otro
   port: ${PORT:${SERVER_PORT:0}}
 
 eureka:
@@ -7,7 +6,6 @@ eureka:
     fetch-registry: true
     register-with-eureka: true
     service-url:
-      # Corregido: "defaultZone" (CamelCase) es obligatorio, "default-zone" no funciona
       defaultZone: http://eureka-service:8761/eureka
   instance:
     prefer-ip-address: true

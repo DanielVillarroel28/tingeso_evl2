@@ -26,20 +26,20 @@ spec:
     spec:
       containers:
       - name: client-service
-        image: danielv28/client-service:latest # <--- CAMBIA ESTO
+        image: danielv28/client-service:latest 
         env:
+        #Eureka
         - name: SERVER_PORT
           value: "8080"
         - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
           value: "http://eureka-service:8761/eureka/"
-# Registro estable en Eureka
         - name: EUREKA_INSTANCE_HOSTNAME
           value: "client-service"
         - name: EUREKA_INSTANCE_INSTANCE_ID
           value: "client-service"
         - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
           value: "false"
-# Base de Datos
+        # Base de Datos
         - name: SPRING_DATASOURCE_URL
           value: "jdbc:postgresql://postgres-db-service:5432/postgres"
         - name: SPRING_DATASOURCE_USERNAME
@@ -51,6 +51,7 @@ spec:
                 key: postgres-password
         - name: SPRING_JPA_HIBERNATE_DDL_AUTO
           value: "update"
+        # Keycloak
         - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
           value: "http://host.minikube.internal:9090/realms/toolrent-realm"
 

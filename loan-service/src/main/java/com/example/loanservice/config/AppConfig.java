@@ -15,8 +15,7 @@ public class AppConfig {
     @Bean
     public RestTemplate restTemplate() {
         RestTemplate rt = new RestTemplate();
-
-        // Propaga Authorization: Bearer ... a microservicios (si existe en la request actual)
+        //Enviar token de autorizacion para evitar problemas
         rt.getInterceptors().add((request, body, execution) -> {
             RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
             if (attrs instanceof ServletRequestAttributes sra) {

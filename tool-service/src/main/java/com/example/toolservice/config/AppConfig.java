@@ -15,7 +15,7 @@ public class AppConfig {
     public RestTemplate restTemplate() {
         RestTemplate rt = new RestTemplate();
 
-        // Interceptor para propagar el Token Authorization a otros microservicios
+        //Enviar token de autorizacion para evitar problemas
         rt.getInterceptors().add((request, body, execution) -> {
             RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
             if (attrs instanceof ServletRequestAttributes sra) {

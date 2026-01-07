@@ -30,12 +30,9 @@ public class FineService {
 
     @Autowired
     private RestTemplate restTemplate;
-
-    // --- CORRECCIÓN CLAVE: Valor por defecto para evitar errores de URI ---
     @Value("${services.client.base-url:http://client-service:8080}")
     private String clientServiceBaseUrl;
 
-    // --- LISTADOS ---
 
     public List<FineDTO> getAllFines() {
         return fineRepository.findAll().stream()
@@ -49,7 +46,7 @@ public class FineService {
                 .collect(Collectors.toList());
     }
 
-    // --- CREACIÓN DE MULTAS (Llamado por LoanService) ---
+    //Creacion de multas
 
     @Transactional
     public void createFine(FineRequestDTO request) {
@@ -66,11 +63,10 @@ public class FineService {
         String type = request.getType() != null ? request.getType().toLowerCase() : "";
         int calculatedAmount = 0;
 
-        // 1. Prioridad: Monto explícito enviado por LoanService (ej. valor de reposición)
         if (request.getAmount() > 0) {
             calculatedAmount = request.getAmount();
         } else {
-            // 2. Fallback: Cálculo por tarifas configuradas
+
             if (type.contains("atraso")) {
                 int dailyFee = configurationService.getFee("daily_late_fee");
                 long days = request.getOverdueDays() > 0 ? request.getOverdueDays() : 1;
@@ -94,7 +90,7 @@ public class FineService {
         }
     }
 
-    // --- PAGO DE MULTAS ---
+    //pago de multas
 
     @Transactional
     public void payFine(Long fineId) {
@@ -105,7 +101,6 @@ public class FineService {
         fine.setPaymentDate(LocalDate.now());
         fineRepository.save(fine);
 
-        // --- VALIDACIÓN: ¿Quedan deudas? ---
         List<FineEntity> pendingFines = fineRepository.findPendingFinesByClientId(fine.getClientId());
 
         if (pendingFines.isEmpty()) {
@@ -116,16 +111,14 @@ public class FineService {
         }
     }
 
-    // --- COMUNICACIÓN CON CLIENT-SERVICE ---
+    // Llamada a ClientService para actualizar estado del cliente
 
     private void updateClientStatus(Long clientId, String newStatus) {
         try {
-            // Construcción robusta de la URL
+
             String url = clientServiceBaseUrl + "/api/v1/clients/" + clientId + "/status?newStatus=" + newStatus;
 
             System.out.println("Llamando a ClientService: " + url);
-
-            // Propagación del Token JWT
             HttpHeaders headers = new HttpHeaders();
             ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attrs != null) {
@@ -144,7 +137,6 @@ public class FineService {
         }
     }
 
-    // --- MÉTODOS DE CONSULTA ADICIONALES ---
 
     public boolean hasPendingFines(Long clientId) {
         return !fineRepository.findPendingFinesByClientId(clientId).isEmpty();
@@ -156,7 +148,6 @@ public class FineService {
                 .orElse(null);
     }
 
-    // --- MAPPER ---
 
     private FineDTO buildFineDTO(FineEntity fine) {
         FineDTO dto = new FineDTO();

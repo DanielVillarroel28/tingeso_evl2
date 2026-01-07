@@ -18,7 +18,7 @@ public class LoanEntity {
     @Column(unique = true, nullable = false)
     private Long id;
 
-    // --- Referencias a otros microservicios (solo IDs y Snapshots) ---
+    //Referencias a otros microservicios (solo IDs y Snapshots) 
     @Column(name = "client_id", nullable = false)
     private Long clientId;
     private String clientName;
@@ -27,13 +27,10 @@ public class LoanEntity {
     @Column(name = "tool_id", nullable = false)
     private Long toolId;
     private String toolName;
-    // ----------------------------------------------------------------
 
     private LocalDate loanDate;
     private LocalDate dueDate;
     private LocalDate returnDate;
     private String status; // "Activo", "Devuelto"
 
-    // IMPORTANTE: Se elimina la lista de multas.
-    // private List<FineEntity> fines;  <-- ESTO YA NO VA AQUÍ
 }

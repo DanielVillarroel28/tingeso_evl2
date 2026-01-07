@@ -16,14 +16,9 @@ public class KardexService {
     @Autowired
     private KardexRepository kardexRepository;
 
-    /**
-     * Registra un movimiento en el Kardex.
-     * * Este método es GENÉRICO. Ya no necesitamos métodos específicos como
-     * "createLoanMovement" o "createNewToolMovement" porque este servicio
-     * ya no conoce las clases LoanEntity o ToolEntity.
-     * * El microservicio que llama (M1 o M2) es responsable de enviar el objeto
-     * KardexEntity con los datos correctos (tipo, cantidad +1/-1, usuario, etc.).
-     */
+
+    //Registra un movimiento en el Kardex.
+
     public KardexEntity save(KardexEntity movement) {
         // Validación: Si no viene fecha, asignamos la actual
         if (movement.getMovementDate() == null) {
@@ -35,8 +30,8 @@ public class KardexService {
     }
 
     /**
-     * Obtiene el historial de movimientos (Épica 6 y 5).
-     * Soporta filtros por nombre de herramienta y rango de fechas.
+    Obtiene el historial de movimientos
+    Soporta filtros por nombre de herramienta y rango de fechas.
      */
     public List<KardexEntity> getMovements(String toolName, LocalDate startDate, LocalDate endDate) {
         // Convertir LocalDate a LocalDateTime para cubrir todo el día
@@ -58,7 +53,6 @@ public class KardexService {
             return kardexRepository.findByMovementDateGreaterThanEqualAndMovementDateLessThan(
                     startDateTime, endDateTime);
         } else {
-            // Si no hay filtros, devuelve todo el historial
             return kardexRepository.findAll();
         }
     }

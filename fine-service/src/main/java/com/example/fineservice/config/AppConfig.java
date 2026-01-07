@@ -14,10 +14,7 @@ public class AppConfig {
     @Bean
     public RestTemplate restTemplate() {
         RestTemplate rt = new RestTemplate();
-
-        // INTERCEPTOR MÁGICO:
-        // Toma el token (Authorization: Bearer ...) de la petición que llegó a FineService
-        // y se lo pega a la petición que FineService le va a hacer a ClientService.
+        //Enviar token de autorizacion para evitar problemas
         rt.getInterceptors().add((request, body, execution) -> {
             RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
             if (attrs instanceof ServletRequestAttributes sra) {

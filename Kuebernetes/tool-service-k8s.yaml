@@ -28,12 +28,12 @@ spec:
         - name: tool-service
           image: danielv28/tool-service:latest
           env:
+          #Eureka
             - name: SERVER_PORT
               value: "8080"
             - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
               value: "http://eureka-service:8761/eureka/"
             
-            # Registro estable en Eureka
             - name: EUREKA_INSTANCE_HOSTNAME
               value: "tool-service"
             - name: EUREKA_INSTANCE_INSTANCE_ID
@@ -41,7 +41,7 @@ spec:
             - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
               value: "false"
 
-            # Base de Datos
+          # Base de Datos
             - name: SPRING_DATASOURCE_URL
               value: "jdbc:postgresql://postgres-db-service:5432/postgres"
             - name: SPRING_DATASOURCE_USERNAME
@@ -54,9 +54,12 @@ spec:
             - name: SPRING_JPA_HIBERNATE_DDL_AUTO
               value: "update"
 
-            # Seguridad: IP sincronizada
+          # Keycloak
             - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
-              value: "http://10.0.131.244:9090/realms/toolrent-realm"
+              value: "http://10.0.134.50:9090/realms/toolrent-realm"
+
+            - name: SERVICES_KARDEX_BASE-URL
+              value: "http://kardex-service:8080"
 
             - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY
               value: "DEBUG"

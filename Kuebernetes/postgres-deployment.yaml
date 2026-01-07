@@ -37,7 +37,7 @@ spec:
             - name: POSTGRES_USER
               value: "postgres"
             - name: POSTGRES_DB
-              value: "postgres"  # Aquí forzamos el nombre que pediste
+              value: "postgres"  
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data

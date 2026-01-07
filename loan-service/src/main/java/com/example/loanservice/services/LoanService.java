@@ -45,20 +45,21 @@ public class LoanService {
     @Value("${services.fine.base-url}")
     private String fineServiceBaseUrl;
 
-    // --- LISTAR PRÉSTAMOS ---
+    //Listar Prestamos
     public List<LoanWithFineInfoDTO> getLoansWithFineInfo() {
         return loanRepository.findAll().stream()
                 .map(this::buildLoanWithFineInfoDTO)
                 .collect(Collectors.toList());
     }
 
+    //Listar Prestamos para un usuario específico
     public List<LoanWithFineInfoDTO> getLoansForUser(String keycloakId) {
         return loanRepository.findByClientKeycloakId(keycloakId).stream()
                 .map(this::buildLoanWithFineInfoDTO)
                 .collect(Collectors.toList());
     }
 
-    // --- CREAR PRÉSTAMO ---
+    // Crear Préstamo
     @Transactional
     public LoanEntity createLoan(LoanDTO loanRequest, JwtAuthenticationToken principal) {
         ClientDTO clientDTO;
@@ -89,7 +90,7 @@ public class LoanService {
         return savedLoan;
     }
 
-    // --- PROCESAR DEVOLUCIÓN ---
+    // Procesar Devolución
     @Transactional
     public LoanWithFineInfoDTO processReturn(Long loanId, ReturnRequestDTO returnRequest) {
         LoanEntity loan = loanRepository.findById(loanId)
@@ -137,7 +138,6 @@ public class LoanService {
             needsRestriction = true;
         }
 
-        // --- ACCIÓN: ACTUALIZAR ESTADO DEL CLIENTE SI CORRESPONDE ---
         if (needsRestriction) {
             updateClientStatus(loan.getClientId(), "Restringido", null);
         }
@@ -162,7 +162,7 @@ public class LoanService {
         }
     }
 
-    // --- ACTUALIZAR Y ELIMINAR ---
+
     public LoanEntity updateLoan(LoanEntity loan) {
         return loanRepository.save(loan);
     }
@@ -174,9 +174,6 @@ public class LoanService {
         return true;
     }
 
-    // ==========================================
-    // MÉTODOS PRIVADOS (COMUNICACIÓN ENTRE MICROSERVICIOS)
-    // ==========================================
 
     private void createFine(LoanEntity loan, String type, int amountOverride, JwtAuthenticationToken principal) {
         try {
@@ -288,7 +285,7 @@ public class LoanService {
         return headers;
     }
 
-    // --- DTOs ---
+    //DTOs
     @Data public static class ClientDTO { private Long id; private String name; private String status; private String keycloakId; }
     @Data public static class ToolDTO { private Long id; private String name; private String status; private int availableStock; private int replacementValue; }
     @Data public static class KardexDTO { private Long toolId; private String toolName; private String movementType; private LocalDateTime movementDate; private int quantityAffected; private String userResponsible; }

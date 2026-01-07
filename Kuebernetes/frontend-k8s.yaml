@@ -3,13 +3,13 @@ kind: Service
 metadata:
   name: frontend-service
 spec:
-  type: NodePort # Requisito Punto 158 del enunciado
+  type: NodePort # NodePort para exponer el servicio fuera del cluster
   selector:
     app: frontend
   ports:
     - port: 80
       targetPort: 80
-      nodePort: 30000 # Puerto para acceder desde tu navegador
+      nodePort: 30000 # Puerto para acceder desde el navegador
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -27,7 +27,6 @@ spec:
     spec:
       containers:
         - name: frontend
-          # ACTUALIZADO: Debe coincidir con tu Docker Hub
           image: danielv28/frontend-service:latest 
           ports:
             - containerPort: 80

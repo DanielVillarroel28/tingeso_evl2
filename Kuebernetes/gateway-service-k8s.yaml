@@ -34,11 +34,11 @@ spec:
             - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
               value: "http://eureka-service:8761/eureka/"
             
-            # Seguridad: IP de Windows (Keycloak)
+            # Keycloak
             - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
-              value: "http://host.minikube.internal:9090/realms/toolrent-realm"
+              value: "http://10.0.134.50:9090/realms/toolrent-realm"
             - name: SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI
-              value: "http://host.minikube.internal:9090/realms/toolrent-realm"
+              value: "http://10.0.134.50:9090/realms/toolrent-realm"
             - name: SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID
               value: "toolrent-backend"
             - name: SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET
@@ -46,7 +46,7 @@ spec:
 
             # CORS para el Frontend
             - name: SPRING_CLOUD_GATEWAY_GLOBALCORS_CORS_CONFIGURATIONS_[/**]_ALLOWED_ORIGINS
-              value: "http://172.26.26.203:30000"
+              value: "http://172.27.241.145:30000"
             - name: SPRING_CLOUD_GATEWAY_GLOBALCORS_CORS_CONFIGURATIONS_[/**]_ALLOWED_METHODS
               value: "*"
             - name: SPRING_CLOUD_GATEWAY_GLOBALCORS_CORS_CONFIGURATIONS_[/**]_ALLOWED_HEADERS
@@ -54,17 +54,17 @@ spec:
             - name: SPRING_CLOUD_GATEWAY_GLOBALCORS_CORS_CONFIGURATIONS_[/**]_ALLOW_CREDENTIALS
               value: "true"
 
-            # RUTA MANUAL PARA EVITAR ERRORES DE DNS (UnknownHostException)
+            # RUTA MANUAL PARA EVITAR ERRORES DE DNS (Prueba)
             - name: SPRING_CLOUD_GATEWAY_ROUTES_0_ID
               value: "tool-service-route"
             - name: SPRING_CLOUD_GATEWAY_ROUTES_0_URI
-              value: "http://tool-service:8080" # Uso del DNS de K8s directamente
+              value: "http://tool-service:8080"
             - name: SPRING_CLOUD_GATEWAY_ROUTES_0_PREDICATES_0
               value: "Path=/TOOL-SERVICE/**"
             - name: SPRING_CLOUD_GATEWAY_ROUTES_0_FILTERS_0
               value: "StripPrefix=1"
             - name: SPRING_CLOUD_GATEWAY_ROUTES_0_FILTERS_1
-              value: "TokenRelay" # Propagación del token para evitar "Anonymous"
+              value: "TokenRelay" 
 
             - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY
               value: "DEBUG"

@@ -1,11 +1,17 @@
 package com.example.toolservice.services;
 
 import com.example.toolservice.entities.ToolEntity;
-import com.example.toolservice.model.KardexDTO;
 import com.example.toolservice.repositories.ToolRepository;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -21,14 +27,13 @@ public class ToolService {
     @Autowired
     RestTemplate restTemplate;
 
-    // --- GUARDAR HERRAMIENTA (SOLUCIÓN 1: ESTADO INICIAL) ---
+    @Value("${services.kardex.base-url:http://kardex-service:8080}")
+    private String kardexServiceBaseUrl;
+
+    // Guardar herramienta con estado inicial y kardex
     public ToolEntity saveTool(ToolEntity tool) {
-        // 1. Estado operativo actual
         tool.setStatus("Disponible");
 
-        // 2. Estado Físico Inicial (Agregado para cumplir tu requerimiento)
-        // Asumiendo que tu entidad tiene el campo 'stateInitial' mapeado a 'state_initial'
-        // Si tu campo en la entidad se llama diferente, ajusta este setter.
         if (tool.getStateInitial() == null || tool.getStateInitial().isEmpty()) {
             tool.setStateInitial("NUEVA");
         }
@@ -38,7 +43,7 @@ public class ToolService {
 
         ToolEntity newTool = toolRepository.save(tool);
 
-        // 3. Kardex
+        // Enviamos el movimiento al Kardex
         sendToKardex(newTool, "Ingreso", 1, "ADMIN");
 
         return newTool;
@@ -56,9 +61,10 @@ public class ToolService {
         return true;
     }
 
-    // Método auxiliar corregido
+    // Enviar al kardex para registrar movimientos
     private void sendToKardex(ToolEntity tool, String type, int quantity, String user) {
         try {
+            // Ahora usamos la clase interna definida abajo
             KardexDTO dto = new KardexDTO();
             dto.setToolId(tool.getId());
             dto.setToolName(tool.getName());
@@ -67,11 +73,22 @@ public class ToolService {
             dto.setQuantityAffected(quantity);
             dto.setUserResponsible(user);
 
-            // CAMBIO: Usar Gateway (localhost:8080) y la ruta con /v1
-            // Asegúrate que el Gateway tenga StripPrefix=1 para KARDEX-SERVICE
-            String url = "http://localhost:8080/KARDEX-SERVICE/api/v1/kardex/movement";
+            // Construcción correcta de la URL usando la variable inyectada
+            String url = kardexServiceBaseUrl + "/api/v1/kardex/movement";
 
-            restTemplate.postForObject(url, dto, Void.class);
+            HttpHeaders headers = new HttpHeaders();
+            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                String token = attrs.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
+                if (token != null) {
+                    headers.set(HttpHeaders.AUTHORIZATION, token);
+                }
+            }
+
+            HttpEntity<KardexDTO> entity = new HttpEntity<>(dto, headers);
+            restTemplate.exchange(url, HttpMethod.POST, entity, Void.class);
+
+            System.out.println("Movimiento enviado a Kardex exitosamente: " + type);
 
         } catch (Exception e) {
             System.err.println("Error comunicando con Kardex: " + e.getMessage());
@@ -95,14 +112,10 @@ public class ToolService {
         }
     }
 
-    // --- ACTUALIZAR ESTADO (SOLUCIÓN 2: DECODIFICAR URL) ---
+    // Actualizar estado
     public void updateToolStatus(Long id, String newStatus) {
         ToolEntity tool = toolRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Herramienta no encontrada con id: " + id));
-
-        // AQUÍ ESTÁ EL TRUCO: Decodificamos el texto antes de guardar.
-        // Esto transforma "Dada%20de%20baja" -> "Dada de baja"
-        // y "En%20reparaci%C3%B3n" -> "En reparación"
         String decodedStatus = URLDecoder.decode(newStatus, StandardCharsets.UTF_8);
 
         tool.setStatus(decodedStatus);
@@ -111,5 +124,15 @@ public class ToolService {
 
     public ArrayList<ToolEntity> getTools() {
         return (ArrayList<ToolEntity>) toolRepository.findAll();
+    }
+
+    @Data
+    public static class KardexDTO {
+        private Long toolId;
+        private String toolName;
+        private String movementType;
+        private LocalDateTime movementDate;
+        private int quantityAffected;
+        private String userResponsible;
     }
 }

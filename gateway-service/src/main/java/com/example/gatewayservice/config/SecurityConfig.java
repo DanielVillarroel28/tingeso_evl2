@@ -34,11 +34,8 @@ public class SecurityConfig {
                 .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource()))
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchange -> exchange
-                        // preflight
                         .pathMatchers(HttpMethod.OPTIONS).permitAll()
-                        // públicos
                         .pathMatchers("/public/**", "/actuator/**").permitAll()
-                        // login OIDC (si se usa oauth2 client)
                         .pathMatchers("/login/**", "/oauth2/**").permitAll()
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
@@ -49,11 +46,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // AGREGA LA IP DE TU MINIKUBE AQUÍ
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5173",
                 "http://localhost:3000",
-                "http://172.26.26.203:30000" // <--- NUEVA IP DEL FRONTEND
+                "http://172.26.26.203:30000",
+                "http://172.27.241.145:30000"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Collections.singletonList("*"));
@@ -65,12 +62,8 @@ public class SecurityConfig {
         return source;
     }
 
-    /**
-     * Convierte un JWT de Keycloak en authorities Spring Security.
-     * Soporta:
-     * - realm_access.roles
-     * - resource_access.{client}.roles
-     * - claim top-level "roles"
+    /*
+      Convierte un JWT de Keycloak en authorities Spring Security.
      */
     private Converter<Jwt, Mono<AbstractAuthenticationToken>> reactiveJwtAuthenticationConverter() {
         return jwt -> Mono.just(new JwtAuthenticationToken(jwt, extractAuthorities(jwt)));

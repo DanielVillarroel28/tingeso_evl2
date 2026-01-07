@@ -1,9 +1,7 @@
 spring:
   application:
     name: fine-service
-
-  # Spring Boot 3 + Spring Cloud 2023+: Config Server se configura con spring.config.import.
-  # Para desarrollo local, lo hacemos opcional para que el servicio levante aunque el config-server no esté arriba.
+    
   config:
     import: optional:configserver:http://localhost:8081
 
@@ -33,8 +31,6 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: http://localhost:9090/realms/toolrent-realm
-
-# Si usas Eureka, configúralo por properties (no necesitas @EnableEurekaClient)
 eureka:
   client:
     service-url:

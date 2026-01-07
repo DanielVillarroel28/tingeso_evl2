@@ -14,18 +14,16 @@ public class FineEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // --- RELACIONES LÓGICAS (Solo IDs) ---
+    //Relaciones logicas (Solo IDs)
     @Column(name = "loan_id", nullable = false)
     private Long loanId;
 
     @Column(name = "client_id", nullable = false)
     private Long clientId;
 
-    // Guardamos estos datos para mostrarlos en el Frontend sin llamar a otros microservicios
     private String clientName;
-    private String clientKeycloakId; // Para buscar "Mis Multas"
+    private String clientKeycloakId;
     private String toolName;
-    // -------------------------------------
 
     private String fineType; // "Atraso", "Daño irreparable", "Daño reparable"
     private int amount;

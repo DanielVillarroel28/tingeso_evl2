@@ -1,4 +1,4 @@
-package com.example.toolservice.model;
+package com.example.kardexservice.model;
 
 import lombok.Data;
 import java.time.LocalDateTime;

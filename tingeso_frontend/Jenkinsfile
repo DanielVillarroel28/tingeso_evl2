@@ -1,0 +1,56 @@
+pipeline {
+    agent any
+    
+
+    tools {
+        nodejs 'node'  
+    }
+
+    environment {
+        VITE_API_SERVER = 'localhost' 
+        VITE_API_PORT = '8090'
+        VITE_KEYCLOAK_URL = 'http://localhost:9090'
+        VITE_KEYCLOAK_REALM = 'toolrent-realm'
+        VITE_KEYCLOAK_CLIENT_ID = 'toolrent-frontend'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/DanielVillarroel28/tingeso-evl1']])
+            }
+        }
+
+        stage('Install & Build (Jenkins)') {
+            steps {
+                dir("tingeso_frontend/tingeso_frontend") { 
+                    script {
+                        sh """
+                            echo "VITE_API_SERVER=${VITE_API_SERVER}" > .env
+                            echo "VITE_API_PORT=${VITE_API_PORT}" >> .env
+                            echo "VITE_KEYCLOAK_URL=${VITE_KEYCLOAK_URL}" >> .env
+                            echo "VITE_KEYCLOAK_REALM=${VITE_KEYCLOAK_REALM}" >> .env
+                            echo "VITE_KEYCLOAK_CLIENT_ID=${VITE_KEYCLOAK_CLIENT_ID}" >> .env
+                        """
+
+                        sh 'npm install'
+                        sh 'npm run build'                        
+                }
+            }
+        }
+        }
+
+        stage('Build & Push Docker Image') {
+            steps {
+                dir("tingeso_frontend/tingeso_frontend") {
+                    script {
+                        withDockerRegistry(credentialsId: 'docker-credentials') {
+                            sh 'docker build -t danielv28/tingeso_frontend:latest .'
+                            sh 'docker push danielv28/tingeso_frontend:latest'
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

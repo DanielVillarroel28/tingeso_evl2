@@ -12,14 +12,11 @@ import java.util.Optional;
 @Repository
 public interface FineRepository extends JpaRepository<FineEntity, Long> {
 
-    // Busca multas asociadas a un préstamo específico (usado por M2)
     Optional<FineEntity> findByLoanId(Long loanId);
 
-    // Busca multas pendientes de un cliente (usado para validar préstamos)
     @Query("SELECT f FROM FineEntity f WHERE f.clientId = :clientId AND f.status = 'Pendiente'")
     List<FineEntity> findPendingFinesByClientId(@Param("clientId") Long clientId);
 
-    // Busca por Keycloak ID (usado para "Mis Multas")
     List<FineEntity> findByClientKeycloakId(String clientKeycloakId);
 }
 

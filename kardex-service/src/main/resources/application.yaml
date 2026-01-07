@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: kardex-service   # 👈 nombre visible en Eureka
+    name: kardex-service  
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres
     username: postgres

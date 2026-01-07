@@ -47,8 +47,7 @@ public class ClientService {
         return clientRepository.save(client);
     }
 
-    // --- NUEVO MÉTODO AGREGADO ---
-    // Este método es llamado por ClientController cuando FineService pide bloquear/desbloquear
+
     public void updateClientStatus(Long id, String newStatus) {
         ClientEntity client = clientRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente no encontrado con id: " + id));
@@ -57,7 +56,7 @@ public class ClientService {
         clientRepository.save(client);
         System.out.println("Estado del cliente " + id + " actualizado a: " + newStatus);
     }
-    // -----------------------------
+
 
     public void deleteClient(Long id) {
         if (!clientRepository.existsById(id)) {

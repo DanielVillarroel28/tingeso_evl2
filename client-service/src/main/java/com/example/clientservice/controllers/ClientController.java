@@ -20,9 +20,8 @@ public class ClientController {
 
     @GetMapping
     public ResponseEntity<List<ClientEntity>> listClients(jakarta.servlet.http.HttpServletRequest request) {
-        System.out.println("--- PETICIÓN RECIBIDA ---");
+        System.out.println("PETICIÓN RECIBIDA");
         System.out.println("URL Real que llegó: " + request.getRequestURI());
-        System.out.println("-------------------------");
 
         List<ClientEntity> clients = clientService.getClients();
         return ResponseEntity.ok(clients);
@@ -46,8 +45,6 @@ public class ClientController {
         return ResponseEntity.ok(clientUpdated);
     }
 
-    // --- NUEVO ENDPOINT AGREGADO ---
-    // Recibe la petición desde FineService (vía Gateway)
     @PutMapping("/{id}/status")
     public ResponseEntity<Void> updateClientStatus(
             @PathVariable Long id,
@@ -56,7 +53,6 @@ public class ClientController {
         clientService.updateClientStatus(id, newStatus);
         return ResponseEntity.ok().build();
     }
-    // -------------------------------
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteClientById(@PathVariable Long id) {
