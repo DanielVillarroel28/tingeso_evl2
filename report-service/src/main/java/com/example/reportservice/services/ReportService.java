@@ -8,6 +8,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -24,19 +25,20 @@ public class ReportService {
     @Autowired
     private RestTemplate restTemplate;
 
-    // Conexión a LoanService (M2)
     @Value("${services.loan.base-url:http://loan-service:8080}")
     private String loanServiceBaseUrl;
 
-    // --- REPORTE 1: Préstamos Activos (Vigentes y Atrasados) ---
-    public List<LoanDTO> getActiveLoans() {
-        List<LoanDTO> allLoans = fetchAllLoans();
+    @Value("${services.client.base-url:http://client-service:8080}")
+    private String clientServiceBaseUrl;
 
-        // Filtramos solo los que NO han sido devueltos (status Activo o similar)
+    //Ver prestamos activos
+    public List<LoanDTO> getActiveLoans() {
+        JwtAuthenticationToken principal = getCurrentPrincipal();
+        List<LoanDTO> allLoans = fetchAllLoans(principal);
+
         return allLoans.stream()
                 .filter(loan -> "Activo".equalsIgnoreCase(loan.getStatus()) || loan.getReturnDate() == null)
                 .map(loan -> {
-                    // Calculamos estado visual en tiempo real
                     if (loan.getDueDate().isBefore(LocalDate.now())) {
                         loan.setStatus("Atrasado");
                     } else {
@@ -47,52 +49,51 @@ public class ReportService {
                 .collect(Collectors.toList());
     }
 
-    // --- REPORTE 2: Clientes con Atrasos ---
+    //Clientes con atraso
     public List<OverdueClientDTO> getOverdueClients() {
-        List<LoanDTO> allLoans = fetchAllLoans();
+        JwtAuthenticationToken principal = getCurrentPrincipal();
+        List<LoanDTO> allLoans = fetchAllLoans(principal);
 
-        // 1. Filtramos préstamos que están vencidos y no devueltos
         List<LoanDTO> overdueLoans = allLoans.stream()
                 .filter(loan -> loan.getReturnDate() == null && loan.getDueDate().isBefore(LocalDate.now()))
                 .collect(Collectors.toList());
 
-        // 2. Agrupamos por Cliente ID
         Map<Long, List<LoanDTO>> loansByClient = overdueLoans.stream()
                 .collect(Collectors.groupingBy(LoanDTO::getClientId));
 
-        // 3. Mapeamos a DTO de reporte
         return loansByClient.entrySet().stream()
                 .map(entry -> {
                     Long clientId = entry.getKey();
                     List<LoanDTO> loans = entry.getValue();
-                    LoanDTO first = loans.get(0); // Para sacar nombre/rut
+                    LoanDTO first = loans.get(0);
+
+                    // Obtener datos del cliente
+                    ClientDTO clientDTO = getClientById(clientId, principal);
 
                     OverdueClientDTO dto = new OverdueClientDTO();
                     dto.setId(clientId);
-                    dto.setName(first.getClientName()); // Asumiendo que LoanDTO trae el nombre
-                    dto.setRut("N/A"); // Si Loan no trae RUT, habría que llamar a ClientService
+                    dto.setName(clientDTO != null ? clientDTO.getName() : first.getClientName());
+                    dto.setRut(clientDTO != null ? clientDTO.getRut() : "N/A");
 
-                    // Sumar días de atraso
                     long totalDays = loans.stream()
                             .mapToLong(l -> java.time.temporal.ChronoUnit.DAYS.between(l.getDueDate(), LocalDate.now()))
                             .sum();
 
                     dto.setTotalOverdueDays(totalDays);
-                    dto.setPendingFinesCount(loans.size()); // 1 multa potencial por préstamo
+                    dto.setPendingFinesCount(loans.size());
                     return dto;
                 })
                 .collect(Collectors.toList());
     }
 
-    // --- REPORTE 3: Ranking de Herramientas ---
+    //Ranking de herramienta
     public List<TopToolDTO> getTopTools() {
-        List<LoanDTO> allLoans = fetchAllLoans();
+        JwtAuthenticationToken principal = getCurrentPrincipal();
+        List<LoanDTO> allLoans = fetchAllLoans(principal);
 
-        // Agrupamos por nombre de herramienta y contamos
         Map<String, Long> countMap = allLoans.stream()
                 .collect(Collectors.groupingBy(LoanDTO::getToolName, Collectors.counting()));
 
-        // Ordenamos descendente y limitamos top 10
         return countMap.entrySet().stream()
                 .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
                 .limit(10)
@@ -100,19 +101,10 @@ public class ReportService {
                 .collect(Collectors.toList());
     }
 
-    // --- MÉTODO AUXILIAR PARA LLAMAR A LOAN-SERVICE ---
-    private List<LoanDTO> fetchAllLoans() {
+    private List<LoanDTO> fetchAllLoans(JwtAuthenticationToken principal) {
         try {
-            String url = loanServiceBaseUrl + "/api/v1/loans"; // Asumiendo que este endpoint devuelve todos
-
-            HttpHeaders headers = new HttpHeaders();
-            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-            if (attrs != null) {
-                String token = attrs.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
-                if (token != null) headers.set(HttpHeaders.AUTHORIZATION, token);
-            }
-
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            String url = loanServiceBaseUrl + "/api/v1/loans";
+            HttpEntity<Void> entity = new HttpEntity<>(authHeaders(principal));
 
             ResponseEntity<List<LoanDTO>> response = restTemplate.exchange(
                     url,
@@ -120,14 +112,53 @@ public class ReportService {
                     entity,
                     new ParameterizedTypeReference<List<LoanDTO>>() {}
             );
-            return response.getBody();
+            return response.getBody() != null ? response.getBody() : List.of();
         } catch (Exception e) {
             System.err.println("Error obteniendo préstamos: " + e.getMessage());
             return List.of();
         }
     }
 
-    // --- DTOs INTERNOS ---
+    private ClientDTO getClientById(Long id, JwtAuthenticationToken principal) {
+        try {
+            HttpEntity<Void> entity = new HttpEntity<>(authHeaders(principal));
+            ResponseEntity<ClientDTO> response = restTemplate.exchange(
+                    clientServiceBaseUrl + "/api/v1/clients/" + id,
+                    HttpMethod.GET,
+                    entity,
+                    ClientDTO.class
+            );
+            return response.getBody();
+        } catch (Exception e) {
+            System.err.println("Error obteniendo cliente: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private JwtAuthenticationToken getCurrentPrincipal() {
+        try {
+            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                Object principal = attrs.getRequest().getUserPrincipal();
+                if (principal instanceof JwtAuthenticationToken) {
+                    return (JwtAuthenticationToken) principal;
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error obteniendo principal: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private HttpHeaders authHeaders(JwtAuthenticationToken principal) {
+        HttpHeaders headers = new HttpHeaders();
+        if (principal != null && principal.getToken() != null) {
+            headers.setBearerAuth(principal.getToken().getTokenValue());
+        }
+        return headers;
+    }
+
+    // --- DTOs ---
     @Data
     public static class LoanDTO {
         private Long id;
@@ -160,5 +191,14 @@ public class ReportService {
             this.category = category;
             this.loanCount = loanCount;
         }
+    }
+
+    @Data
+    public static class ClientDTO {
+        private Long id;
+        private String name;
+        private String rut;
+        private String status;
+        private String keycloakId;
     }
 }

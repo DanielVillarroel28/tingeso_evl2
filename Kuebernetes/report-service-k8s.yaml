@@ -31,21 +31,24 @@ spec:
           env:
             - name: SERVER_PORT
               value: "8080"
+            
+            # Nombre de la aplicación
+            - name: SPRING_APPLICATION_NAME
+              value: "report-service"
+            
+            # Eureka configuration
             - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
               value: "http://eureka-service:8761/eureka/"
-            
             - name: EUREKA_INSTANCE_HOSTNAME
               value: "report-service"
-            - name: EUREKA_INSTANCE_INSTANCE_ID
-              value: "report-service"
             - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
-              value: "false"
-
+              value: "true"
             - name: EUREKA_CLIENT_REGISTER_WITH_EUREKA
               value: "true"
             - name: EUREKA_CLIENT_FETCH_REGISTRY
               value: "true"
             
+            # Database
             - name: SPRING_DATASOURCE_URL
               value: "jdbc:postgresql://postgres-db-service:5432/postgres"
             - name: SPRING_DATASOURCE_USERNAME
@@ -59,7 +62,7 @@ spec:
               value: "update"
 
             # Conexión con otros microservicios
-            - name: SERVICES_LOAN_BASE-URL
+            - name: SERVICES_LOAN_BASE_URL
               value: "http://loan-service:8080"
               
             # Seguridad Keycloak

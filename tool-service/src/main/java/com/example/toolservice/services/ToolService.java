@@ -78,7 +78,7 @@ public class ToolService {
             // Usamos authHeaders() para obtener el token automáticamente
             HttpEntity<KardexDTO> entity = new HttpEntity<>(dto, authHeaders());
 
-            // Enviamos usando exchange (igual que LoanService)
+            // Enviamos usando exchange
             restTemplate.exchange(url, HttpMethod.POST, entity, Void.class);
 
             System.out.println("Movimiento enviado a Kardex exitosamente: " + type);
